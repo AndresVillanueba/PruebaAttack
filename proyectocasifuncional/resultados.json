@@ -1,0 +1,25 @@
+{
+  "cve": "CVE-2022-22965",
+  "title": "CVE-2022-22965",
+  "published": "2022-04-01T23:15:13",
+  "modified": "2025-01-29T18:15:44",
+  "cvss": 9.8,
+  "vulners_AI": "N/A",
+  "cwe": ["CWE-94"],
+  "description": "A Spring MVC or Spring WebFlux application ...",
+  "affectedSoftware": [
+    {
+      "cpeName": "vmware:spring_framework",
+      "version": "5.2.20",
+      "operator": "lt",
+      "name": "vmware spring framework"
+    }
+  ],
+  "exploits": [
+    {
+      "title": "Exploit for Code Injection in Vmware Spring Framework",
+      "published": "2022-04-05T15:45:47",
+      "url": "https://vulners.com/githubexploit/14C82873-438C-5B08-A8A0-E306FEAC5C56"
+    }
+  ]
+}

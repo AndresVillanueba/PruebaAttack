@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ATTACK-SENTINEL</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <style>
+    /* Limita el alto de la tabla de historial únicamente, NO la de resultados */
+    #history-section .history-table-wrapper {
+      max-height: 700px;
+      overflow-y: auto;
+      width: 100%;
+    }
+    #history-section table {
+      width: 100%;
+      table-layout: fixed;
+      font-size: 1.18em;
+      border-radius: 12px;
+      background: #fff;
+      margin-bottom: 0;
+    }
+    #history-section thead {
+      background: #232f3e;
+      color: #fff;
+      font-size: 1.13em;
+      border-radius: 12px 12px 0 0;
+    }
+    #history-section td, #history-section th {
+      padding: 16px 10px;
+      word-break: break-word;
+      vertical-align: middle;
+    }
+    /* Eliminar scroll interno de la tabla de resultados */
+    #results-table {
+      width: 100%;
+      table-layout: fixed;
+      max-width: 1100px;
+      margin: 0 auto 24px auto;
+      font-size: 1.13em;
+      box-shadow: 0 4px 24px 0 rgba(31,38,135,0.13);
+      border-radius: 12px;
+      background: #fff;
+      /* Quitar display:block, max-height y overflow-y */
+    }
+    #results-table thead, #results-table tbody, #results-table tr {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+    #results-table td, #results-table th {
+      padding: 12px 8px;
+      word-break: break-word;
+      vertical-align: middle;
+    }
+    #results-table tr {
+      border-bottom: 1px solid #e0e0e0;
+    }
+    #results-table tr:last-child td {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Barra superior -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top" style="z-index:1000;">
+    <a class="navbar-brand d-flex align-items-center" href="#" style="font-weight:700; font-size:1.3em;">
+      <span>ATTACK-SENTINEL</span>
+      <span id="user-display" style="margin-left:18px; font-size:0.95em; color:#ffc107; font-weight:500; display:none; cursor:pointer; position:relative;">
+        <!-- El nombre de usuario irá aquí -->
+      </span>
+      <div id="user-dropdown" class="dropdown-menu" style="min-width:220px; display:none; position:absolute; top:32px; left:0; z-index:2000;">
+        <a class="dropdown-item" href="#" id="view-pdfs-btn"><i class="fa-solid fa-file-pdf mr-2"></i>Ver PDFs descargados</a>
+        <a class="dropdown-item" href="#" id="view-history-btn"><i class="fa-solid fa-clock-rotate-left mr-2"></i>Ver historial</a>
+      </div>
+    </a>
+    <div class="ml-auto d-flex align-items-center justify-content-end" style="width: 260px;">
+      <button id="logout-btn" class="btn btn-outline-danger d-none" style="font-size:1.1em; display:flex; align-items:center; gap:8px;">
+        <span style="font-weight:600;">Cerrar sesión</span>
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </nav>
+  <div class="container d-flex flex-column justify-content-center align-items-center" style="min-height: 80vh;">
+    <!-- Login -->
+    <div id="login-section" class="d-flex justify-content-center align-items-center w-100" style="min-height: 60vh;">
+      <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 22px;">
+        <div class="text-center mb-3">
+          <img src="logo-ats.jpg" alt="login-icon" style="width:70px; opacity:0.9;">
+          <h2 class="mt-2 mb-3" style="font-weight:700; color:#343a40; letter-spacing:0.5px;">Iniciar Sesión</h2>
+        </div>
+        <form id="login-form">
+          <div class="form-group">
+            <label for="username">Usuario</label>
+            <input type="text" class="form-control" id="username" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input type="password" class="form-control" id="password" required autocomplete="current-password">
+          </div>
+          <div id="login-error" class="alert alert-danger py-2 px-3 mt-2 mb-0" style="display:none;font-size:0.95em;"></div>
+          <button type="submit" class="btn btn-primary btn-block mt-3" style="font-weight:600;">Entrar</button>
+          <div class="text-center mt-3">
+            <a href="#" id="show-register" style="color:#007bff; font-size:0.98em;">¿No tienes cuenta? Regístrate</a>
+          </div>
+        </form>
+        <form id="register-form" style="display:none;">
+          <div class="form-group">
+            <label for="reg-username">Usuario</label>
+            <input type="text" class="form-control" id="reg-username" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Contraseña</label>
+            <input type="password" class="form-control" id="reg-password" required autocomplete="new-password">
+          </div>
+          <div id="register-error" class="alert alert-danger py-2 px-3 mt-2 mb-0" style="display:none;font-size:0.95em;"></div>
+          <div id="register-success" class="alert alert-success py-2 px-3 mt-2 mb-0" style="display:none;font-size:0.95em;"></div>
+          <button type="submit" class="btn btn-success btn-block mt-3" style="font-weight:600;">Crear cuenta</button>
+          <div class="text-center mt-3">
+            <a href="#" id="show-login" style="color:#007bff; font-size:0.98em;">¿Ya tienes cuenta? Inicia sesión</a>
+          </div>
+        </form>
+        <button id="google-login-btn" type="button" style="background:#fff;color:#444;border:1px solid #ccc;padding:8px 16px;border-radius:4px;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;font-weight:600;margin-top:12px;">
+          <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width:20px;height:20px;"> Iniciar sesión con Google
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenido principal oculto hasta login -->
+    <div id="main-content" class="w-100 d-flex flex-column align-items-center justify-content-center" style="display:none !important; min-height: 60vh;">
+      <!-- Barra de carga -->
+      <div id="loading-bar" class="progress" style="display:none; height: 32px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+          style="width: 0%; font-size:1.1em;" id="loading-bar-inner">Cargando análisis...</div>
+      </div>
+
+      <form id="analysis-form" class="mt-4">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-3" style="gap: 16px;">
+          <button id="help-btn-form-top" type="button" class="btn btn-outline-info" title="Ayuda" style="font-size:1.15em; min-width:44px; height:44px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-circle-question"></i>
+          </button>
+          <span style="font-weight:600; color:#007bff; font-size:1.13em;">Análisis de Dominio/IP</span>
+        </div>
+        <div class="form-group">
+          <label for="target">IP o Dominio</label>
+          <input type="text" class="form-control" id="target" placeholder="Ingrese la IP o dominio" required>
+        </div>
+        <div class="form-group">
+          <label for="analysis-type">Tipo de Análisis</label>
+          <select class="form-control" id="analysis-type" required>
+            <option value="attack_surface_scan">Escaneo de Superficie de Ataque</option>
+            <option value="cve_lookup">Detección de Vulnerabilidades (CVEs)</option>
+            <option value="subdomain_enum">Enumeración de Subdominios</option>
+          </select>
+        </div>
+        <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
+          <button type="submit" class="btn btn-primary" id="start-analysis-btn" style="min-width:140px; height:44px; font-size:1.08em;">Iniciar Análisis</button>
+          <button id="help-btn-form" type="button" class="btn btn-outline-info" title="Ayuda" style="font-size:1.15em; min-width:44px; height:44px; margin-left: 12px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-circle-question"></i>
+          </button>
+        </div>
+      </form>
+
+      <div id="results" class="mt-5" style="display:none;">
+        <h2 class="mb-4" style="font-weight:700; color:#2d3a4a;">Resultados del Análisis</h2>
+        <table class="table table-striped" id="results-table">
+          <thead class="thead-dark">
+            <tr>
+              <th>Servicio</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody id="results-output">
+          </tbody>
+        </table>
+
+        <h3 class="mt-4" style="font-weight:600; color:#007bff;">Informe Completo</h3>
+        <pre id="full-report" style="background:#f5f5f5; padding:2em 2.5em; overflow:auto; max-height:600px; border-radius:12px; font-size:1.13em; line-height:1.7; margin:0 auto 24px auto; width:100%; max-width:1100px; box-shadow:0 4px 24px 0 rgba(31,38,135,0.13); white-space:pre-wrap; word-break:break-word;"></pre>
+
+        <button id="download-report" class="btn btn-secondary mt-2">Descargar Informe PDF</button>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 mb-3" style="gap: 12px;">
+        <button id="show-history" class="btn btn-info">Ver Historial</button>
+        <button id="close-history" class="btn btn-danger" style="display:none;">Cerrar historial</button>
+      </div>
+      <div id="history-section" style="display:none;">
+        <h3 class="mb-3" style="font-weight:600; color:#2d3a4a;">Historial de Análisis</h3>
+        <form id="history-filter-form" class="form-inline mb-3">
+          <label for="history-from" class="mr-2">Desde:</label>
+          <input type="date" id="history-from" class="form-control mr-3" style="max-width:160px;">
+          <label for="history-to" class="mr-2">Hasta:</label>
+          <input type="date" id="history-to" class="form-control mr-3" style="max-width:160px;">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <button type="button" id="clear-history-filter" class="btn btn-link ml-2">Limpiar</button>
+        </form>
+        <!-- Tabla de historial sin columna de resumen -->
+        <div class="history-table-wrapper">
+          <table class="table table-bordered">
+            <thead class="thead-light">
+              <tr>
+                <th>Fecha</th>
+                <th>Target</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody id="history-output"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de ayuda -->
+    <div class="modal fade" id="help-modal" tabindex="-1" role="dialog" aria-labelledby="helpModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="helpModalLabel">¿Qué es ATTACK-SENTINEL?</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p><b>ATTACK-SENTINEL</b> te permite analizar la seguridad de una IP o dominio usando técnicas profesionales de ciberseguridad. <b>La plataforma está principalmente enfocada al análisis de dominios o de direcciones IP asociadas a dominios</b>, por lo que obtendrás mejores resultados si introduces dominios o IPs públicas de servicios web.</p>
+            <ul>
+              <li>Escanear la superficie de ataque de un sistema o web.</li>
+              <li>Buscar vulnerabilidades conocidas (CVEs).</li>
+              <li>Enumerar subdominios públicos.</li>
+              <li>Generar informes ejecutivos automáticos con IA.</li>
+              <li>Consultar y descargar el historial de tus análisis.</li>
+            </ul>
+            <p>Ideal para estudiantes, analistas y cualquier persona que quiera aprender sobre ciberseguridad ofensiva de forma sencilla y visual.</p>
+            <hr>
+            <b>¿Cómo funciona?</b>
+            <ul>
+              <li>Regístrate o inicia sesión.</li>
+              <li>Elige el tipo de análisis y el objetivo.</li>
+              <li>Revisa los resultados y descarga el informe.</li>
+              <li>Consulta tu historial y filtra por fecha.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para PDFs descargados -->
+    <div class="modal fade" id="pdfs-modal" tabindex="-1" role="dialog" aria-labelledby="pdfsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="pdfsModalLabel">PDFs descargados</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body" id="pdfs-list">
+            <div class="text-center text-muted">Cargando PDFs...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script src="scripts.js"></script>
+  <script>
+    document.getElementById('google-login-btn').onclick = function(e) {
+      e.preventDefault();
+      window.location.href = '/auth/google';
+    };
+  </script>
+  <!--
+  INTEGRATION INSTRUCTIONS:
+  - After Google login, user is redirected to /auth-success.html?token=...&role=...
+  - In /auth-success.html, extract the token from the URL and store it (e.g., in localStorage) for API requests.
+  - You can then redirect to your main app/dashboard.
+  -->
+</body>
+</html>

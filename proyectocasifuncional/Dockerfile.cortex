@@ -1,0 +1,71 @@
+FROM thehiveproject/cortex:3.1.8-1
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Configurar APT
+RUN rm -f /etc/apt/sources.list.d/corretto.list && \
+    printf 'Acquire::Retries "3";\nAcquire::http::Timeout "20";\n' > /etc/apt/apt.conf.d/80retry
+
+# Instalar dependencias y Go 1.20+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libmagic1 \
+        curl \
+        python3 \
+        python3-pip \
+        nmap \
+        git \
+        wget && \
+    wget https://go.dev/dl/go1.20.14.linux-amd64.tar.gz && \
+    rm -rf /usr/local/go && \
+    tar -C /usr/local -xzf go1.20.14.linux-amd64.tar.gz && \
+    ln -s /usr/local/go/bin/go /usr/bin/go && \
+    rm go1.20.14.linux-amd64.tar.gz && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# Compilar Smap desde código fuente
+RUN git clone https://github.com/s0md3v/Smap.git /opt/smap && \
+    cd /opt/smap/cmd/smap && \
+    go build -o /usr/local/bin/smap && \
+    chmod +x /usr/local/bin/smap && \
+    rm -rf /opt/smap
+
+# Dependencias Python
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install \
+        cortexutils \
+        vulners \
+        shodan \
+        filetype \
+        python-magic \
+        vt-py \
+        opensearch-py \
+        abuse-finder
+
+# Configuración de permisos y caché
+RUN mkdir -p /tmp/vulners_cache /home/cortex && \
+    chmod 777 /tmp/vulners_cache /home/cortex && \
+    ln -sfn /tmp/vulners_cache /home/cortex
+
+# Copiar analizadores
+COPY Cortex-Analyzers/analyzers/MITRE_Correlation \
+     /opt/Cortex-Analyzers/analyzers/MITRE_Correlation
+
+COPY Cortex-Analyzers/analyzers/Abuse_Finder \
+     /opt/Cortex-Analyzers/analyzers/Abuse_Finder
+
+COPY Cortex-Analyzers/analyzers/SmapScan \
+     /opt/Cortex-Analyzers/analyzers/SmapScan
+
+RUN chmod -R +x /opt/Cortex-Analyzers/analyzers/SmapScan && \
+    chown -R cortex:cortex /opt/Cortex-Analyzers/analyzers
+
+# Install dos2unix and convert line endings in all Python scripts
+RUN apt-get update && \
+    apt-get install -y dos2unix && \
+    find /opt/Cortex-Analyzers/analyzers -type f -name "*.py" -exec dos2unix {} \; && \
+    find /opt/Cortex-Analyzers/analyzers -type f -name "*.py" -exec chmod +x {} \; && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

@@ -1,0 +1,24 @@
+Metadata-Version: 2.1
+Name: cortexutils
+Version: 2.2.0
+Summary: A Python library for including utility classes for Cortex analyzers and responders
+Home-page: https://github.com/TheHive-Project/Cortex-Analyzers/tree/master/contrib
+Author: TheHive-Project
+Author-email: support@thehive-project.org
+License: AGPL-V3
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Information Technology
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Topic :: Security
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+License-File: LICENSE
+
+Cortexutils is a set of classes that aims to make users write Cortex analyzers easier.
+
+

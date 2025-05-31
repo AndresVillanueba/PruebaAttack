@@ -1,0 +1,26 @@
+{
+  "name":                   "MITRE_Correlation",
+  "version":                "1.0",
+  "author":                 "Andrés Romero",
+  "license":                "AGPL-V3",
+  "description":            "Correlate observables against MITRE ATT&CK techniques stored in OpenSearch",
+
+  "type":                   "process",
+  "dataTypeList":           ["ip","domain","url","hash","file","other"],
+
+  "configurationItems": [
+    {
+      "name":        "es_uri",
+      "type":        "string",
+      "multi":       false,
+      "required":    false,
+      "description": "URL de OpenSearch"
+    }
+  ],
+
+  "command":                "MITRE_Correlation/mitre_correlation.py",
+
+  "registration_required":  false,
+  "subscription_required":  false
+}
+

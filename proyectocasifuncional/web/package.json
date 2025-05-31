@@ -1,0 +1,19 @@
+{
+  "name": "proyecto_attack",
+  "version": "1.0.0",
+  "description": "Servidor para la Plataforma de Análisis de Superficie de Ataque",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@opensearch-project/opensearch": "^3.5.1",
+    "axios": "^1.9.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^9.0.2",
+    "opensearch": "^0.0.3",
+    "pdfkit": "^0.17.1"
+  }
+}

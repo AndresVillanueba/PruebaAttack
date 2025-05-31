@@ -1,0 +1,11 @@
+{
+  "name": "Nmap_Scan",
+  "version": "1.0",
+  "author": "Andres",
+  "description": "Escaneo de puertos y servicios con Nmap",
+  "reference": "https://tuweb.com",
+  "category": "network",
+
+  "exec_type": "analyzer",
+  "command": ["python3", "Nmap_Scan.py"]
+}

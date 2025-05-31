@@ -1,0 +1,13 @@
+{
+  "name": "SmapScan",
+  "version": "1.0",
+  "description": "Simple Smap TCP SYN port scan",
+  "author": "Andres",
+  "url": "https://github.com/smap-project/smap",
+  "license": "AGPL-V3",
+  "dataTypeList": ["ip", "domain"],
+  "command": "SmapScan/smap_scan.py",
+  "timeout": 120000,
+  "baseConfig": "SmapScan",
+  "config": {}
+}

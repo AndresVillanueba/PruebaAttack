@@ -1,0 +1,34 @@
+[
+  {
+    "username": "admin",
+    "password": "admin123",
+    "role": "admin"
+  },
+  {
+    "username": "user",
+    "password": "user123",
+    "role": "user"
+  },
+  {
+    "username": "andresjulian6a@gmail.com",
+    "password": "",
+    "role": "user",
+    "googleId": "103308749969154858243"
+  },
+  {
+    "username": "andres",
+    "password": "$2b$10$3A4RQP42wpail3/3gkRBxO/Y94au4HLSndJph2sk1pUqvMz4Ih5mu",
+    "role": "user"
+  },
+  {
+    "username": "javi",
+    "password": "$2b$10$oIgx/9P5qFqQnGgcMKaeUeW/YIc2vNGVt6DF0V1FBoqT1rTSYzeUO",
+    "role": "user"
+  },
+  {
+    "username": "andresjulianromerovilla@gmail.com",
+    "password": "",
+    "role": "user",
+    "googleId": "100863334574696218006"
+  }
+]
