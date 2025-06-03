@@ -53,9 +53,6 @@ RUN mkdir -p /tmp/vulners_cache /home/cortex && \
 COPY Cortex-Analyzers/analyzers/MITRE_Correlation \
      /opt/Cortex-Analyzers/analyzers/MITRE_Correlation
 
-COPY Cortex-Analyzers/analyzers/Abuse_Finder \
-     /opt/Cortex-Analyzers/analyzers/Abuse_Finder
-
 COPY Cortex-Analyzers/analyzers/SmapScan \
      /opt/Cortex-Analyzers/analyzers/SmapScan
 

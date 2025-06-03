@@ -1,10 +1,5 @@
 [
   {
-    "username": "admin",
-    "password": "admin123",
-    "role": "admin"
-  },
-  {
     "username": "user",
     "password": "user123",
     "role": "user"
@@ -30,5 +25,30 @@
     "password": "",
     "role": "user",
     "googleId": "100863334574696218006"
+  },
+  {
+    "username": "andres1",
+    "password": "$2b$10$vFSNt1k7FB1jGpbAh91igu6CGEKl4GjygwPFZ0a6CUeZagIEp1LD2",
+    "role": "admin"
+  },
+  {
+    "username": "diego",
+    "password": "$2b$10$UmExrGFZNf499YbUtwVbY.6BMv3qMB34HcyJ9gCvQD80V9kng3922",
+    "role": "user"
+  },
+  {
+    "username": "admin1",
+    "password": "$2b$10$kC1Kzj8rTfzdpcNSI5R21etBWcUNZMZgdNbWiIS/2ExcXSSm4lXJi",
+    "role": "admin"
+  },
+  {
+    "username": "adminsentinel",
+    "password": "$2b$10$PvskjyNcyqZeD90cT9ENfeHxQFMxgNJfQKIYS4fxN5RbFqgMBpOsO",
+    "role": "admin"
+  },
+  {
+    "username": "andres2",
+    "password": "$2b$10$wurWXc8jYwsb31za83KVde3m9Dxy6n7A3Vg2Dx9yk3nBtn0jVr2aq",
+    "role": "user"
   }
 ]

@@ -56,10 +56,17 @@ $(function () {
   // Mostrar nombre de usuario en la barra superior si está logueado
   function mostrarUsuarioNavbar() {
     const username = localStorage.getItem('username');
+    const role = localStorage.getItem('role');
     if (username) {
       $('#user-display').text(username).show();
+      if (role === 'admin') {
+        $('#admin-panel-link').show();
+      } else {
+        $('#admin-panel-link').hide();
+      }
     } else {
       $('#user-display').hide();
+      $('#admin-panel-link').hide();
     }
   }
 
@@ -80,9 +87,11 @@ $(function () {
         showMainContent();
         localStorage.setItem('token', resp.token);
         localStorage.setItem('username', username); // Guardar nombre de usuario
+        if (resp.role) localStorage.setItem('role', resp.role); // Guardar rol
         $.ajaxSetup({
           headers: { 'Authorization': 'Bearer ' + resp.token }
         });
+        if (resp.role === 'admin') showAdminPanel();
       } else {
         $('#login-error').text('Usuario o contraseña incorrectos').fadeIn();
       }
@@ -143,12 +152,12 @@ $(function () {
       });
       $historyOut.empty();
       let results = resp.history || resp.results || [];
+      window._lastHistoryResults = results;
       if (results.length === 0) {
         $historySec.hide();
         $closeHistory.removeClass('show').hide();
         return;
       }
-      // Mostrar filas y guardar resumen en data
       results.forEach((r, idx) => {
         $historyOut.append(`
           <tr class="history-row" data-idx="${idx}">
@@ -161,16 +170,10 @@ $(function () {
       $historySec.show();
       $closeHistory.addClass('show').show();
       $historyBtn.hide();
-      // Al hacer clic en una fila, NO mostrar resumen debajo
+      // Selección de fila para MITRE
       $('.history-row').off('click').on('click', function() {
-        // No hacer nada, no mostrar resumen
-      });
-      // Limpiar resumen al cerrar historial
-      $closeHistory.off('click').on('click', function() {
-        $historySec.hide();
-        $closeHistory.removeClass('show').hide();
-        $historyBtn.show();
-        $('#history-summary').remove();
+        $('.history-row').removeClass('selected');
+        $(this).addClass('selected');
       });
     } catch (err) {
       $historySec.hide();
@@ -178,19 +181,22 @@ $(function () {
     }
   }
 
-  // Mostrar historial al hacer login
-  $(document).on('showMainContent', mostrarHistorial);
-  // Mostrar historial al pulsar el botón
-  $historyBtn.click(mostrarHistorial);
-
   // Descargar PDF solo del análisis mostrado
   let lastAnalysisTimestamp = null;
 
   // Lanzar análisis
   $form.on('submit', async function (e) {
     e.preventDefault();
-    const target       = $('#target').val().trim();
+    const target = $('#target').val().trim();
     const analysisType = $('#analysis-type').val();
+    // Validación extra de IP/dominio en JS
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const domainRegex = /^([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}$/;
+    if (!ipRegex.test(target) && !domainRegex.test(target)) {
+      alert('Introduce una IP válida (ej: 192.168.1.1) o un dominio válido (ej: ejemplo.com)');
+      $('#target').focus();
+      return;
+    }
     startLoadingBarReal();
     $wrap.hide();
     $tbody.empty();
@@ -491,6 +497,9 @@ $(function () {
   $('#help-btn-form-top').click(function() {
     $('#help-modal').modal('show');
   });
+  $('#help-btn-login').click(function() {
+    $('#help-modal-login').modal('show');
+  });
 
   // Alternar entre login y registro
   $('#show-register').click(function(e) {
@@ -622,3 +631,289 @@ $(function () {
 
 // Al cargar la página, ocultar el help del form por defecto
 $('#help-btn-form').addClass('d-none');
+
+// --- Mostrar info MITRE global ---
+$('#show-mitre-info').click(async function() {
+  const $section = $('#mitre-info-section');
+  const $output = $('#mitre-info-output');
+  if ($section.is(':visible')) {
+    $section.slideUp();
+    return;
+  }
+  $output.empty();
+  $section.slideDown();
+  $output.append('<tr><td colspan="4">Cargando información MITRE...</td></tr>');
+  try {
+    // Si hay una fila seleccionada en el historial, mostrar solo técnicas MITRE relacionadas
+    const selectedRow = $('.history-row.selected');
+    if (selectedRow.length > 0) {
+      const idx = selectedRow.data('idx');
+      const r = window._lastHistoryResults?.[idx];
+      if (r && r.resumen && Array.isArray(r.resumen)) {
+        // Buscar técnicas MITRE relacionadas a los servicios del resumen
+        const services = r.resumen.map(x => x.service?.toLowerCase()).filter(Boolean);
+        const response = await $.getJSON('attack-stix-data/enterprise-attack/enterprise-attack-14.1.json');
+        const techniques = response.objects.filter(obj => obj.type === 'attack-pattern');
+        $output.empty();
+        let found = 0;
+        for (const s of services) {
+          const matches = techniques.filter(t => t.name && t.name.toLowerCase().includes(s));
+          matches.forEach(t => {
+            found++;
+            $output.append(`
+              <tr>
+                <td>${t.external_references?.[0]?.external_id || '-'}</td>
+                <td>${t.name || '-'}</td>
+                <td>${t.description ? t.description.substring(0, 120) + '...' : '-'}</td>
+                <td><a href="${t.external_references?.[0]?.url || '#'}" target="_blank">Ver técnica</a></td>
+              </tr>
+            `);
+          });
+        }
+        if (!found) $output.append('<tr><td colspan="4">No se encontraron técnicas MITRE relacionadas con el historial seleccionado.</td></tr>');
+        return;
+      }
+    }
+    // Si no hay selección, mostrar las primeras técnicas MITRE
+    const response = await $.getJSON('attack-stix-data/enterprise-attack/enterprise-attack-14.1.json');
+    const techniques = response.objects.filter(obj => obj.type === 'attack-pattern');
+    $output.empty();
+    techniques.slice(0, 50).forEach(t => {
+      $output.append(`
+        <tr>
+          <td>${t.external_references?.[0]?.external_id || '-'}</td>
+          <td>${t.name || '-'}</td>
+          <td>${t.description ? t.description.substring(0, 120) + '...' : '-'}</td>
+          <td><a href="${t.external_references?.[0]?.url || '#'}" target="_blank">Ver técnica</a></td>
+        </tr>
+      `);
+    });
+  } catch (err) {
+    $output.html('<tr><td colspan="4">No se pudo cargar la información MITRE. Asegúrate de que el archivo attack-stix-data/enterprise-attack/enterprise-attack-14.1.json existe y es accesible desde /web/. Si usas Express, añade app.use(express.static(__dirname)); en server.js.</td></tr>');
+  }
+});
+
+// Admin panel logic
+function isAdmin() {
+  return localStorage.getItem('role') === 'admin';
+}
+
+function showAdminPanel() {
+  if (!isAdmin()) return;
+  document.getElementById('admin-panel').style.display = '';
+  loadAdminAnalyses();
+}
+
+// --- Admin Dashboard y Filtros ---
+async function updateAdminDashboard(analyses) {
+  document.getElementById('dash-total-analyses').innerText = analyses.length;
+  const users = [...new Set(analyses.map(a => a.username))];
+  document.getElementById('dash-active-users').innerText = users.length;
+  const types = [...new Set(analyses.map(a => a.analyzer))];
+  document.getElementById('dash-types').innerText = types.join(', ') || '-';
+  let vulnCount = 0;
+  analyses.forEach(a => {
+    if (a.result && a.result.results) {
+      vulnCount += a.result.results.filter(r => (r.service || '').toLowerCase().includes('cve')).length;
+    }
+  });
+  document.getElementById('dash-vulns').innerText = vulnCount;
+}
+
+function showAdminNotification(msg, type = 'info') {
+  const notif = document.getElementById('admin-notifications');
+  notif.className = 'alert alert-' + type;
+  notif.innerText = msg;
+  notif.style.display = '';
+  setTimeout(() => { notif.style.display = 'none'; }, 3500);
+}
+
+// --- Filtros y búsqueda ---
+document.getElementById('admin-search-form').onsubmit = function(e) {
+  e.preventDefault();
+  loadAdminAnalyses();
+};
+document.getElementById('clear-admin-filters').onclick = function() {
+  document.getElementById('filter-user').value = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-target').value = '';
+  document.getElementById('filter-from').value = '';
+  document.getElementById('filter-to').value = '';
+  loadAdminAnalyses();
+};
+
+document.getElementById('export-analyses-csv').onclick = function() {
+  const rows = Array.from(document.querySelectorAll('#admin-analyses-body tr'));
+  let csv = 'Timestamp,Target,Tipo,Usuario\n';
+  rows.forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    csv += `${tds[0].innerText},${tds[1].innerText},${tds[2].innerText},${tds[3].innerText}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'analyses.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// --- Cargar análisis con filtros ---
+async function loadAdminAnalyses() {
+  const token = localStorage.getItem('token');
+  const tbody = document.getElementById('admin-analyses-body');
+  tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  const user = document.getElementById('filter-user').value.trim();
+  const type = document.getElementById('filter-type').value.trim();
+  const target = document.getElementById('filter-target').value.trim();
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  let url = '/api/history?lang=es';
+  if (from) url += `&from=${from}`;
+  if (to) url += `&to=${to}`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const data = await res.json();
+    let analyses = data.history || [];
+    // Filtros en frontend
+    if (user) analyses = analyses.filter(a => (a.username || '').toLowerCase().includes(user.toLowerCase()));
+    if (type) analyses = analyses.filter(a => (a.analyzer || '').toLowerCase().includes(type.toLowerCase()));
+    if (target) analyses = analyses.filter(a => (a.target || '').toLowerCase().includes(target.toLowerCase()));
+    updateAdminDashboard(analyses);
+    tbody.innerHTML = '';
+    if (!analyses.length) tbody.innerHTML = '<tr><td colspan="5">Sin resultados</td></tr>';
+    analyses.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${a.timestamp || '-'}</td>
+        <td>${a.target || '-'}</td>
+        <td>${a.analyzer || '-'}</td>
+        <td>${a.username || '-'}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="deleteAdminAnalysis('${a.timestamp}')">Borrar</button>
+          <button class="btn btn-warning btn-sm ml-2" onclick="showUpdateForm('${a.timestamp}')">Actualizar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5">Error cargando análisis</td></tr>';
+  }
+}
+
+window.deleteAdminAnalysis = async function(timestamp) {
+  if (!confirm('¿Seguro que quieres borrar este análisis?')) return;
+  const token = localStorage.getItem('token');
+  const res = await fetch(`/api/admin/analysis/${timestamp}`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (res.ok) {
+    loadAdminAnalyses();
+  } else {
+    let msg = 'Error borrando análisis';
+    try {
+      const data = await res.json();
+      msg += data && data.error ? `: ${data.error}` : '';
+      if (data && data.detail) msg += `\nDetalle: ${data.detail}`;
+    } catch {}
+    alert(msg);
+  }
+};
+
+window.showUpdateForm = function(timestamp) {
+  const row = [...document.querySelectorAll('#admin-analyses-body tr')].find(tr => tr.innerHTML.includes(timestamp));
+  if (!row) return;
+  const tds = row.querySelectorAll('td');
+  document.getElementById('insert-timestamp').value = tds[0].innerText;
+  document.getElementById('insert-target').value = tds[1].innerText;
+  document.getElementById('insert-analyzer').value = tds[2].innerText;
+  document.getElementById('insert-username').value = tds[3].innerText;
+  document.getElementById('insert-role').value = 'user';
+  document.getElementById('insert-result').value = '';
+  document.getElementById('admin-insert-form').style.display = '';
+  document.getElementById('insert-analysis-form').onsubmit = async function(e) {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    const timestamp = document.getElementById('insert-timestamp').value;
+    const body = {
+      target: document.getElementById('insert-target').value,
+      analyzer: document.getElementById('insert-analyzer').value,
+      username: document.getElementById('insert-username').value,
+      role: document.getElementById('insert-role').value,
+      result: JSON.parse(document.getElementById('insert-result').value)
+    };
+    const res = await fetch(`/api/admin/analysis/${timestamp}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      document.getElementById('admin-insert-form').style.display = 'none';
+      loadAdminAnalyses();
+    } else {
+      alert('Error actualizando análisis');
+    }
+  };
+};
+
+document.getElementById('refresh-admin-analyses').onclick = loadAdminAnalyses;
+document.getElementById('show-insert-form').onclick = function() {
+  document.getElementById('admin-insert-form').style.display = '';
+};
+document.getElementById('cancel-insert').onclick = function() {
+  document.getElementById('admin-insert-form').style.display = 'none';
+};
+
+document.getElementById('insert-analysis-form').onsubmit = async function(e) {
+  e.preventDefault();
+  const token = localStorage.getItem('token');
+  const body = {
+    timestamp: document.getElementById('insert-timestamp').value,
+    target: document.getElementById('insert-target').value,
+    analyzer: document.getElementById('insert-analyzer').value,
+    username: document.getElementById('insert-username').value,
+    role: document.getElementById('insert-role').value,
+    result: JSON.parse(document.getElementById('insert-result').value)
+  };
+  const res = await fetch('/api/admin/analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(body)
+  });
+  if (res.ok) {
+    document.getElementById('admin-insert-form').style.display = 'none';
+    loadAdminAnalyses();
+  } else {
+    alert('Error insertando análisis');
+  }
+};
+
+// Mostrar panel admin si corresponde al cargar la página
+if (isAdmin()) showAdminPanel();
+
+// Mostrar/ocultar panel admin como página dedicada
+$('#admin-panel-link').click(function(e) {
+  e.preventDefault();
+  $('#main-content').hide();
+  $('#admin-panel').show();
+});
+
+// Si el usuario sale del panel admin, volver al main-content
+function salirPanelAdmin() {
+  $('#admin-panel').hide();
+  $('#main-content').show();
+}
+// Puedes añadir un botón "Volver" dentro del panel admin para llamar a salirPanelAdmin()
+
+// Mostrar/ocultar menú desplegable al hacer clic en el nombre de usuario
+$('#user-display').off('click').on('click', function(e) {
+  e.stopPropagation();
+  $('#user-dropdown').toggle();
+});
+// Ocultar el menú si se hace clic fuera
+$(document).on('click', function(e) {
+  if (!$(e.target).closest('#user-dropdown, #user-display').length) {
+    $('#user-dropdown').hide();
+  }
+});

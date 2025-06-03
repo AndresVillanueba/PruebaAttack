@@ -36,4 +36,4 @@ def bulk_ingest(file_path):
     print(f"Ingestados {len(actions)} objetos de MITRE ATT&CK.")
 
 if __name__ == "__main__":
-    bulk_ingest("attack-stix-data/enterprise-attack/enterprise-attack.json")
+    bulk_ingest("attack-stix-data/enterprise-attack/enterprise-attack-16.1.json")

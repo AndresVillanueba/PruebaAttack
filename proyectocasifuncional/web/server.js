@@ -80,7 +80,8 @@ if (!API_KEY) console.warn('CORTEX_API_KEY no está definido; la web no podrá l
 
 app.use(express.static(path.join(__dirname)));
 app.use(express.json());
-
+// Servir archivos estáticos de toda la raíz del proyecto (incluyendo attack-stix-data)
+app.use(express.static(path.join(__dirname, '..')));
 
 /*  Mapa de analizadores disponibles */
 const cfgMap = {
@@ -257,7 +258,10 @@ function decrypt(text) {
 // Registro de usuario
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ success: false, error: 'Faltan datos' });
+  // Validación: mínimo 3 caracteres, sin espacios
+  if (!username || !password || username.length < 3 || password.length < 3 || /\s/.test(username) || /\s/.test(password)) {
+    return res.status(400).json({ error: 'Usuario y contraseña deben tener al menos 3 caracteres y no contener espacios.' });
+  }
   if (username.toLowerCase() === 'admin') return res.status(400).json({ success: false, error: 'No puedes registrar el usuario admin.' });
   const users = readUsers();
   if (users.find(u => u.username === username)) {
@@ -271,9 +275,13 @@ app.post('/api/register', async (req, res) => {
   res.json({ success: true });
 });
 
-// Login
+// Login de usuario
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+  // Validación: mínimo 3 caracteres, sin espacios
+  if (!username || !password || username.length < 3 || password.length < 3 || /\s/.test(username) || /\s/.test(password)) {
+    return res.status(400).json({ error: 'Usuario y contraseña deben tener al menos 3 caracteres y no contener espacios.' });
+  }
   let user = await getUserFromDB(username);
   if (!user) {
     // fallback: users.json
@@ -285,9 +293,68 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, role: user.role });
 });
 
+// --- PASSPORT GOOGLE OAUTH2 ---
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'pon-un-secreto-aleatorio-aqui',
+  resave: false,
+  saveUninitialized: false
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => {
+  done(null, user.username);
+});
+passport.deserializeUser((username, done) => {
+  let user = readUsers().find(u => u.username === username);
+  done(null, user);
+});
+
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL
+}, async (accessToken, refreshToken, profile, done) => {
+  let users = readUsers();
+  let user = users.find(u => u.googleId === profile.id || u.username === profile.emails[0].value);
+  if (!user) {
+    user = {
+      username: profile.emails[0].value,
+      password: '',
+      role: 'user',
+      googleId: profile.id
+    };
+    users.push(user);
+    writeUsers(users);
+  } else {
+    // Actualiza googleId si no está
+    if (!user.googleId) {
+      user.googleId = profile.id;
+      writeUsers(users);
+    }
+  }
+  return done(null, user);
+}));
+
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
+  // Genera un JWT para el usuario Google
+  const token = generateToken(req.user);
+  // Redirige al frontend con el token y rol como parámetros
+  res.redirect(`/auth-success.html?token=${token}&role=${req.user.role}`);
+});
+
+// Lanzar análisis
 app.post('/api/analyze', authMiddleware, async (req, res) => {
   await checkIndex();
   const { target, analysisType, lang } = req.body;
+  // Validación de IP o dominio
+  const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const domainRegex = /^([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}$/;
+  if (!ipRegex.test(target) && !domainRegex.test(target)) {
+    return res.status(400).json({ error: 'Introduce una IP válida (ej: 192.168.1.1) o un dominio válido (ej: ejemplo.com)' });
+  }
   let cfg = cfgMap[analysisType];
   console.log(`[ANALYZE] Inicio análisis: type=${analysisType}, target=${target}, lang=${lang}`);
   // --- NUEVO: Si el análisis es cve_lookup y el target NO es un CVE, buscar CVEs para el dominio/IP ---
@@ -533,7 +600,7 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
         }));
       }
       if (!rows.length && report.full?.output) {
-        // Si es salida de Nmap, recortar solo la tabla de puertos
+        // Si es salida de Smap, recortar solo la tabla de puertos
         let output = report.full.output;
         // Buscar la sección de puertos (desde la primera línea que contiene 'PORT' hasta la última línea que contiene '/tcp' o '/udp')
         const portTableMatch = output.match(/PORT[\s\S]+?(\d+\/tcp[\s\S]+?)(Nmap done:|$)/i);
@@ -614,8 +681,8 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
       report.aiReport = aiReport;
     }
     // Enviar el resumen AI como campo separado y no como parte de 'full' para evitar confusión en el frontend
-    console.log('[ANALYZE] Respuesta final enviada al frontend:', JSON.stringify({ analyzer: cfg.name, results: rows, full: report, resumenAI: aiReport }, null, 2));
-    return res.json({ analyzer: cfg.name, results: rows, full: report, resumenAI: aiReport });
+    console.log('[ANALYZE] Respuesta final enviada al frontend:', JSON.stringify({ analyzer: cfg.name, results: rows, full: report, resumenAI: aiReport, timestamp: doc.timestamp }, null, 2));
+    return res.json({ analyzer: cfg.name, results: rows, full: report, resumenAI: aiReport, timestamp: doc.timestamp });
   } catch (err) {
     console.error('[ANALYZE] ERROR:', err && (err.response?.data || err.message || err));
     const detail = err.response?.data?.message || err.message || 'Error desconocido';
@@ -628,327 +695,270 @@ app.get('/api/history', authMiddleware, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin';
     const lang = req.query.lang || 'es';
-    const query = isAdmin ? { match_all: {} } : { term: { username: req.user.username } };
+    const from = req.query.from;
+    const to = req.query.to;
+    let query = isAdmin ? { match_all: {} } : { term: { username: req.user.username } };
+    // Si hay filtro de fechas, añadirlo al query
+    if (from || to) {
+      const range = {};
+      if (from) range.gte = from;
+      if (to) range.lte = to;
+      query = {
+        bool: {
+          must: [isAdmin ? { match_all: {} } : { term: { username: req.user.username } }],
+          filter: [{ range: { timestamp: range } }]
+        }
+      };
+    }
     let results = await getDecryptedReports(query);
     // Para cada análisis, extraer resumen de resultados (servicio, descripción, detalles)
-    const history = results.map(r => {
-      // Mostrar SIEMPRE la fila en el historial, aunque no haya resumen
+    const history = await Promise.all(results.map(async r => {
       let resumen = [];
-      if (Array.isArray(r.result?.results) && r.result.results.length > 0) {
-        resumen = r.result.results.map(x => ({
-          service: x.service || x.id || '-',
-          description: (x.description && x.description !== '-') ? x.description : (x.title || x.details || x.id || x.service || '-'),
-          details: x.details || x.cvss || x.references || ''
-        }));
-      } else if (r.analyzer === 'cve_lookup' || r.analyzer === 'Vulners_CVE_1_0') {
-        // Si no hay results, igual mostrar la fila en historial
-        resumen = [{
-          service: '-',
-          description: 'Análisis de CVEs realizado',
-          details: ''
-        }];
+      // Quitar correlación MITRE del historial
+      if (r.result && Array.isArray(r.result.results)) {
+        resumen = r.result.results.map(x => ({ service: x.service, description: x.description }));
       }
-      return {
-        timestamp: r.timestamp,
-        target: r.target,
-        analyzer: (r.analyzer === 'cve_lookup' || r.analyzer === 'Vulners_CVE_1_0') ? 'CVES' : r.analyzer,
-        resumen
-      };
-    });
+      return { ...r, resumen };
+    }));
     res.json({ history });
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo historial', detail: err.message });
   }
 });
 
-app.get('/api/download-report', authMiddleware, async (req, res) => {
-  await checkIndex();
-  try {
-    const isAdmin = req.user.role === 'admin';
-    const lang = req.query.lang || 'es';
-    const query = isAdmin ? { match_all: {} } : { term: { username: req.user.username } };
-    let docs = await getDecryptedReports(query);
-    for (const d of docs) {
-      if (!d.aiReport) {
-        console.log('[PDF] Generando informe AI para:', d.analyzer, d.target);
-        d.aiReport = await generateOllamaReport(d.result, lang);
-        console.log('[PDF] Respuesta Ollama:', d.aiReport);
-      }
-    }
-    const doc = new PDFDocument();
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="informe.pdf"');
-    doc.pipe(res);
-    doc.fontSize(18).text('Informe de Análisis de Superficie de Ataque', { align: 'center' });
-    doc.moveDown();
-    docs = docs.filter(d => d && d.timestamp && d.username && d.analyzer && d.result);
-    console.log('Docs recuperados para PDF:', docs);
-    if (docs.length === 0) {
-      doc.fontSize(14).text('No hay informes disponibles para este usuario.', { align: 'center' });
-      doc.end();
-      return;
-    }
-    for (const d of docs) {
-      doc.fontSize(12).text(`Fecha: ${d.timestamp}`);
-      doc.text(`Usuario: ${d.username} (${d.role})`);
-      doc.text(`Target: ${d.target}`);
-      doc.text(`Tipo de análisis: ${d.analyzer}`);
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').text('Reporte técnico completo (Cortex):');
-      doc.font('Helvetica').fontSize(9).text(JSON.stringify(d.result, null, 2), {lineGap: 2});
-      doc.moveDown();
-      if (d.aiReport) {
-        doc.font('Helvetica-Bold').fontSize(12).text('Informe AI (Ollama):');
-        doc.font('Helvetica').fontSize(10).text(d.aiReport, {lineGap: 2});
-        doc.moveDown();
-      }
-      doc.end();
-    }
-    return;
-  } catch (err) {
-    res.status(500).json({ error: 'Error generando PDF', detail: err.message });
-  }
-});
-
-// Descargar solo un informe por timestamp
+// --- Descargar informe PDF por timestamp ---
 app.get('/api/download-report/:timestamp', authMiddleware, async (req, res) => {
   await checkIndex();
+  const timestamp = req.params.timestamp;
   try {
-    const isAdmin = req.user.role === 'admin';
-    const timestamp = req.params.timestamp;
-    if (!timestamp) return res.status(400).json({ error: 'Falta el timestamp.' });
-    const query = isAdmin ? { term: { timestamp } } : { bool: { must: [ { term: { username: req.user.username } }, { term: { timestamp } } ] } };
-    let docs = await getDecryptedReports(query, 1);
-    if (!docs.length) {
-      return res.status(404).json({ error: 'No se encontró el informe.' });
-    }
-    const d = docs[0];
-    if (!d.aiReport) {
-      d.aiReport = await generateOllamaReport(d.result, req.query.lang || 'es');
-    }
-    const doc = new PDFDocument();
+    // Buscar el análisis por timestamp exacto
+    const { body } = await searchClient.search({
+      index: INDEX_NAME,
+      body: { query: { term: { timestamp } } },
+      size: 1
+    });
+    if (!body.hits.hits.length) return res.status(404).json({ error: 'Análisis no encontrado' });
+    // Desencriptar y parsear
+    const doc = body.hits.hits[0]._source;
+    const data = JSON.parse(decrypt(doc.data));
+    // Generar PDF simple
+    const pdf = new PDFDocument();
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="informe_${d.analyzer}_${d.target}.pdf"`);
-    doc.pipe(res);
-    doc.fontSize(18).text('Informe de Análisis de Superficie de Ataque', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Fecha: ${d.timestamp}`);
-    doc.text(`Usuario: ${d.username} (${d.role})`);
-    doc.text(`Target: ${d.target}`);
-    doc.text(`Tipo de análisis: ${d.analyzer}`);
-    doc.moveDown(0.5);
-    doc.font('Helvetica-Bold').text('Reporte técnico completo (Cortex):');
-    doc.font('Helvetica').fontSize(9).text(JSON.stringify(d.result, null, 2), {lineGap: 2});
-    doc.moveDown();
-    if (d.aiReport) {
-      doc.font('Helvetica-Bold').fontSize(12).text('Informe AI (Ollama):');
-      doc.font('Helvetica').fontSize(10).text(d.aiReport, {lineGap: 2});
-      doc.moveDown();
+    res.setHeader('Content-Disposition', 'attachment; filename="informe.pdf"');
+    pdf.pipe(res);
+    pdf.fontSize(18).text('Informe de Análisis', { align: 'center' });
+    pdf.moveDown();
+    pdf.fontSize(12).text('Timestamp: ' + (data.timestamp || '-'));
+    pdf.text('Target: ' + (data.target || '-'));
+    pdf.text('Tipo: ' + (data.analyzer || '-'));
+    pdf.text('Usuario: ' + (data.username || '-'));
+    pdf.text('Rol: ' + (data.role || '-'));
+    pdf.moveDown();
+    pdf.fontSize(14).text('Resultados:', { underline: true });
+    if (data.result && Array.isArray(data.result.results)) {
+      data.result.results.forEach((r, i) => {
+        pdf.moveDown(0.5);
+        pdf.fontSize(12).text(`${i + 1}. Servicio: ${r.service || '-'}\n   Descripción: ${r.description || '-'}\n   Detalles: ${r.details || '-'}`);
+      });
+    } else {
+      pdf.fontSize(12).text('No hay resultados técnicos.');
     }
-    doc.end();
+    pdf.end();
   } catch (err) {
     res.status(500).json({ error: 'Error generando PDF', detail: err.message });
   }
 });
 
-// Endpoint para que el admin borre el historial de un usuario específico
-app.delete('/api/history/:username', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Solo el administrador puede borrar historiales de otros usuarios.' });
-  }
-  const username = req.params.username;
-  if (!username) {
-    return res.status(400).json({ error: 'Falta el nombre de usuario.' });
-  }
+// --- Rutas de prueba para desarrollo ---
+app.get('/api/test/ollama', async (req, res) => {
+  const url = `http://localhost:${OLLAMA_PORT}/api/generate`;
+  const prompt = 'Eres un experto en ciberseguridad. Resume los siguientes hallazgos: ' + JSON.stringify(req.query.data);
+  const payload = { model: OLLAMA_MODEL, prompt, stream: false };
   try {
-    await checkIndex();
-    const result = await searchClient.deleteByQuery({
-      index: INDEX_NAME,
-      body: { query: { term: { username } } },
-      refresh: true
-    });
-    res.json({ success: true, deleted: result.body.deleted || 0 });
+    const response = await axios({ method: 'post', url, data: payload, responseType: 'json' });
+    res.json(response.data);
   } catch (err) {
-    res.status(500).json({ error: 'Error borrando historial', detail: err.message });
+    res.status(500).json({ error: 'Error llamando a Ollama', detail: err.message });
   }
 });
 
-// --- SESSION & PASSPORT CONFIG ---
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'sessionsecret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false } // Set to true if using HTTPS
-}));
-app.use(passport.initialize());
-app.use(passport.session());
-
-passport.serializeUser((user, done) => {
-  done(null, user.username);
-});
-passport.deserializeUser((username, done) => {
-  const users = readUsers();
-  const user = users.find(u => u.username === username);
-  done(null, user || false);
-});
-
-// --- GOOGLE OAUTH STRATEGY ---
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:8080/auth/google/callback',
-}, async (accessToken, refreshToken, profile, done) => {
-  // Use email as username
-  const email = profile.emails && profile.emails[0] && profile.emails[0].value;
-  if (!email) return done(null, false);
-  let users = readUsers();
-  let user = users.find(u => u.username === email);
-  if (!user) {
-    user = { username: email, password: '', role: 'user', googleId: profile.id };
-    users.push(user);
-    writeUsers(users);
-    await saveUserToDB(user); // <-- Añadido: guardar usuario Google en OpenSearch
-  } else {
-    // Update googleId if not present
-    if (!user.googleId) {
-      user.googleId = profile.id;
-      writeUsers(users);
-      await saveUserToDB(user); // <-- Añadido: actualizar usuario Google en OpenSearch
-    }
+app.get('/api/test/vulners', async (req, res) => {
+  if (!process.env.VULNERS_API_KEY) return res.status(500).json({ error: 'API Key de Vulners no configurada' });
+  try {
+    const response = await axios.get('https://vulners.com/api/v3/search/lucene/', {
+      params: { query: req.query.q, size: 10 },
+      headers: { 'Api-Key': process.env.VULNERS_API_KEY }
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: 'Error consultando Vulners', detail: err.message });
   }
-  return done(null, user);
-}));
-
-// --- GOOGLE OAUTH ROUTES ---
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/?login=failed', session: false }), (req, res) => {
-  // Successful authentication, issue JWT and redirect with token
-  const user = req.user;
-  const token = generateToken(user);
-  // Redirect to frontend with token as query param (adjust as needed)
-  res.redirect(`/auth-success.html?token=${token}&role=${user.role}`);
 });
 
-// MIGRACIÓN: Guardar todos los usuarios de users.json en OpenSearch al iniciar el servidor
-async function migrateUsersToOpenSearch() {
-  const users = readUsers();
-  for (const user of users) {
-    await saveUserToDB(user);
-  }
-  console.log('Migración de users.json a OpenSearch completada.');
+app.get('/api/test/cortex', async (req, res) => {
+  const { data } = await axios.get(`${CORTEX_URL}/api/analyzer`, { headers: cortexHeaders });
+  res.json(data);
+});
+
+// --- Página de agradecimiento ---
+app.get('/api/gracias', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>¡Gracias por usar nuestro servicio!</title>
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }
+          .container { max-width: 800px; margin: 50px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+          h1 { text-align: center; color: #333; }
+          p { line-height: 1.6; color: #555; }
+          .footer { text-align: center; margin-top: 20px; font-size: 0.9em; color: #777; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>¡Gracias por usar nuestro servicio de análisis de seguridad!</h1>
+          <p>Su informe ha sido generado exitosamente. Puede descargarlo desde la sección de historial.</p>
+          <p>Si tiene alguna pregunta o necesita asistencia adicional, no dude en contactarnos.</p>
+          <div class="footer">
+            <p>Correo electrónico: soporte@seguridad.com</p>
+            <p>Teléfono: +34 912 345 678</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+// --- Página de error 404 ---
+app.use((req, res) => {
+  res.status(404).send(`
+    <html>
+      <head>
+        <title>Página no encontrada</title>
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 100px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+          h1 { text-align: center; color: #333; }
+          p { line-height: 1.6; color: #555; }
+          a { color: #007bff; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Página no encontrada</h1>
+          <p>Lo sentimos, la página que estás buscando no existe.</p>
+          <p>Volver a <a href="/">Inicio</a></p>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+// --- Correlación MITRE: función básica para historial ---
+async function correlateServiceWithMitre(service) {
+  // Aquí deberías implementar la lógica real de correlación con MITRE
+  // Por ahora, devuelve un array vacío o un ejemplo si el servicio contiene palabras clave
+  // Puedes mejorar esto usando tus datos MITRE locales
+  const mitreExamples = {
+    'ssh': [{ id: 'T1021.004', name: 'Remote Services: SSH', url: 'https://attack.mitre.org/techniques/T1021/004/' }],
+    'rdp': [{ id: 'T1021.001', name: 'Remote Services: RDP', url: 'https://attack.mitre.org/techniques/T1021/001/' }],
+    'http': [{ id: 'T1190', name: 'Exploit Public-Facing Application', url: 'https://attack.mitre.org/techniques/T1190/' }]
+  };
+  const key = Object.keys(mitreExamples).find(k => service.toLowerCase().includes(k));
+  return key ? mitreExamples[key] : [];
 }
 
-// Llama a checkUserIndex, checkIndex y migración al iniciar el servidor
-(async () => {
-  try {
-    await checkUserIndex();
-    await checkIndex();
-    await migrateUsersToOpenSearch(); // <-- migrar usuarios locales
-    // await searchClient.deleteByQuery({
-    //   index: INDEX_NAME,
-    //   body: { query: { match_all: {} } },
-    //   refresh: true
-    // });
-    // console.log('Todos los documentos del índice analisis han sido eliminados al iniciar el servidor.');
-  } catch (err) {
-    console.warn('No se pudo limpiar el índice analisis al iniciar:', err && (err.body || err.message || err));
-  }
-})();
-
-/*  start server */
-app.listen(PORT, () => console.log(`Web escuchando en http://localhost:${PORT}`));
-
-// Reanalizar un análisis anterior y actualizar el documento existente
-app.post('/api/reanalyze', authMiddleware, async (req, res) => {
+// --- ADMIN: Insertar análisis manualmente ---
+app.post('/api/admin/analysis', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el admin puede insertar análisis' });
   await checkIndex();
-  const { timestamp } = req.body;
-  if (!timestamp) {
-    return res.status(400).json({ error: 'Falta el timestamp del análisis a reanalizar.' });
-  }
+  const doc = req.body;
   try {
-    // Buscar el análisis anterior por timestamp y usuario (obteniendo el _id de OpenSearch)
-    const searchRes = await searchClient.search({
-      index: INDEX_NAME,
-      size: 1,
-      body: {
-        query: {
-          bool: {
-            must: [
-              { term: { username: req.user.username } },
-              { term: { timestamp } }
-            ]
-          }
-        }
-      }
-    });
-    const hit = searchRes.body.hits?.hits?.[0];
-    if (!hit) {
-      return res.status(404).json({ error: 'No se encontró el análisis anterior.' });
-    }
-    const prev = JSON.parse(decrypt(hit._source.data));
-    const docId = hit._id;
-    // Reutilizar la lógica de /api/analyze
-    const analysisType = prev.analyzer;
-    const target = prev.target;
-    const lang = req.body.lang || 'es';
-    const cfg = cfgMap[analysisType];
-    if (!cfg) {
-      return res.status(400).json({ error: 'Tipo de análisis no soportado.' });
-    }
-    const dataType = typeof cfg.type === 'function' ? cfg.type(target) : cfg.type;
-    const data = cfg.build(target);
-    const workerId = await resolveWorkerId(cfg.name);
-    console.log(`[REANALYZE] workerId: ${workerId}`);
-    if (!workerId) throw new Error(`No existe el analizador ${cfg.name} en Cortex`);
-    console.log(`[REANALYZE] Enviando job a Cortex: analyzer=${cfg.name}, dataType=${dataType}, data=${data}`);
-    const { data: job } = await axios.post(
-      `${CORTEX_URL}/api/analyzer/${workerId}/run`,
-      { dataType, data },
-      { headers: cortexHeaders }
-    );
-    let status = job.status, report = null, tries = 0;
-    while (['Waiting', 'InProgress'].includes(status) && tries < 30) {
-      await new Promise(r => setTimeout(r, 2000));
-      const { data: info } = await axios.get(`${CORTEX_URL}/api/job/${job.id}`, { headers: cortexHeaders });
-      status = info.status;
-      report = info.report || report;
-      tries++;
-      console.log(`[REANALYZE] Polling job ${job.id} intento ${tries}: status=${status}`);
-      console.log(`[REANALYZE] Respuesta completa del polling (intento ${tries}):`, JSON.stringify(info, null, 2));
-    }
-    if (status !== 'Success') {
-      return res.status(502).json({ error: `El job terminó en estado ${status}` });
-    }
-    if (!report) {
-      const { data: rep } = await axios.get(`${CORTEX_URL}/api/job/${job.id}/report`, { headers: cortexHeaders });
-      report = rep.report;
-    }
-    const aiReport = await generateOllamaReport(report, lang);
-    // Actualizar el documento existente en OpenSearch (manteniendo el mismo timestamp)
-    const updatedDoc = {
-      username: req.user.username,
-      analyzer: analysisType,
-      timestamp: prev.timestamp, // mantener el timestamp original
-      role: req.user.role,
-      target,
-      data: encrypt(JSON.stringify({
-        timestamp: prev.timestamp,
-        target,
-        analyzer: analysisType,
-        result: report,
-        username: req.user.username,
-        role: req.user.role
-      }))
-    };
-    await searchClient.update({
-      index: INDEX_NAME,
-      id: docId,
-      body: { doc: updatedDoc },
-      refresh: 'true'
-    });
-    res.json({ analyzer: cfg.name, result: report, resumenAI: aiReport });
+    await saveReport(doc);
+    res.json({ ok: true, message: 'Análisis insertado correctamente' });
   } catch (err) {
-    res.status(500).json({ error: 'Error reanalizando', detail: err.message });
+    res.status(500).json({ error: 'Error insertando análisis', detail: err.message });
   }
+});
+
+// --- ADMIN: Borrar análisis por timestamp ---
+app.delete('/api/admin/analysis/:timestamp', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el admin puede borrar análisis' });
+  await checkIndex();
+  const timestamp = req.params.timestamp;
+  try {
+    // Buscar todos los documentos por timestamp (sin filtrar por usuario)
+    const { body } = await searchClient.search({
+      index: INDEX_NAME,
+      body: { query: { term: { timestamp } } },
+      size: 100 // por si hay muchos duplicados
+    });
+    if (!body.hits.hits.length) return res.status(404).json({ error: 'Análisis no encontrado' });
+    // Borrar todos los documentos con ese timestamp
+    for (const hit of body.hits.hits) {
+      await searchClient.delete({ index: INDEX_NAME, id: hit._id });
+    }
+    res.json({ ok: true, message: 'Análisis borrado correctamente' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error borrando análisis', detail: err.body?.error?.reason || err.message });
+  }
+});
+
+// --- ADMIN: Actualizar análisis por timestamp ---
+app.put('/api/admin/analysis/:timestamp', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el admin puede actualizar análisis' });
+  await checkIndex();
+  const timestamp = req.params.timestamp;
+  const updateDoc = req.body;
+  try {
+    // Buscar todos los documentos por timestamp
+    const { body } = await searchClient.search({
+      index: INDEX_NAME,
+      body: { query: { term: { timestamp } } },
+      size: 100
+    });
+    if (!body.hits.hits.length) return res.status(404).json({ error: 'Análisis no encontrado' });
+    // Actualizar todos los documentos con ese timestamp
+    for (const hit of body.hits.hits) {
+      await searchClient.update({
+        index: INDEX_NAME,
+        id: hit._id,
+        body: { doc: updateDoc }
+      });
+    }
+    res.json({ ok: true, message: 'Análisis actualizado correctamente' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando análisis', detail: err.body?.error?.reason || err.message });
+  }
+});
+
+// --- Ruta temporal para insertar análisis de prueba ---
+app.post('/api/admin/insert-demo-analysis', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Solo el admin puede insertar análisis demo' });
+  await checkIndex();
+  const now = new Date().toISOString();
+  const doc = {
+    timestamp: now,
+    target: req.body.target || 'demo.com',
+    analyzer: req.body.analyzer || 'attack_surface_scan',
+    username: req.user.username,
+    role: req.user.role,
+    result: req.body.result || { results: [{ service: 'Puerto 80/tcp', description: 'HTTP abierto', details: 'Demo' }] }
+  };
+  try {
+    await saveReport(doc);
+    res.json({ ok: true, message: 'Demo análisis insertado', timestamp: now });
+  } catch (err) {
+    res.status(500).json({ error: 'Error insertando demo', detail: err.message });
+  }
+});
+
+// --- Servir archivos estáticos SOLO después de las rutas de API ---
+app.use(express.static(path.join(__dirname, '..')));
+
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  checkIndex();
+  checkUserIndex();
 });
