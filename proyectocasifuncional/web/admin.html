@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel de Administración - ATTACK-SENTINEL</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+    <a class="navbar-brand d-flex align-items-center" href="index.html" style="font-weight:700; font-size:1.3em;">
+      <span>ATTACK-SENTINEL</span>
+    </a>
+    <div class="ml-auto d-flex align-items-center justify-content-end" style="width: 260px;">
+      <button id="logout-btn" class="btn btn-outline-danger d-none" style="font-size:1.1em; display:flex; align-items:center; gap:8px;">
+        <span style="font-weight:600;">Cerrar sesión</span>
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+  </nav>
+  <div class="container mt-5">
+    <h2 class="mb-4" style="font-weight:700; color:#b36b00;">Panel de Administración</h2>
+    <div class="row mb-4" id="admin-dashboard">
+      <div class="col-md-3 mb-2">
+        <div class="card text-white bg-primary h-100">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Total análisis</h5>
+            <p class="card-text mb-0 font-weight-bold" id="dash-total-analyses" style="font-size:1.5em; word-break:break-all;">-</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-2">
+        <div class="card text-white bg-primary h-100">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Usuarios activos</h5>
+            <p class="card-text mb-0 font-weight-bold" id="dash-active-users" style="font-size:1.5em; word-break:break-all;">-</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-2">
+        <div class="card text-white bg-primary h-100">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Tipos de análisis</h5>
+            <p class="card-text mb-0 font-weight-bold" id="dash-types" style="font-size:1.5em; word-break:break-all;">-</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-2">
+        <div class="card text-white bg-primary h-100">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Vulnerabilidades detectadas</h5>
+            <p class="card-text mb-0 font-weight-bold" id="dash-vulns" style="font-size:1.5em; word-break:break-all;">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="admin-notifications" class="alert alert-info" style="display:none;"></div>
+    <form id="admin-search-form" class="form-inline mb-3">
+      <input type="text" class="form-control mr-2 mb-2" id="filter-user" placeholder="Usuario">
+      <input type="text" class="form-control mr-2 mb-2" id="filter-type" placeholder="Tipo análisis">
+      <input type="text" class="form-control mr-2 mb-2" id="filter-target" placeholder="Target">
+      <input type="date" class="form-control mr-2 mb-2" id="filter-from">
+      <input type="date" class="form-control mr-2 mb-2" id="filter-to">
+      <button type="submit" class="btn btn-primary mb-2">Buscar</button>
+      <button type="button" class="btn btn-link mb-2" id="clear-admin-filters">Limpiar</button>
+      <button type="button" class="btn btn-outline-success mb-2 ml-2" id="export-analyses-csv">Exportar CSV</button>
+    </form>
+    <div class="mb-3">
+      <button class="btn btn-success" id="refresh-admin-analyses">Actualizar</button>
+      <button class="btn btn-primary ml-2" id="show-insert-form">Insertar nuevo análisis</button>
+    </div>
+    <div id="admin-insert-form" style="display:none;" class="mb-4">
+      <h5>Insertar análisis manualmente</h5>
+      <form id="insert-analysis-form">
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <input type="text" class="form-control" id="insert-timestamp" placeholder="Timestamp (ISO)" required>
+          </div>
+          <div class="form-group col-md-2">
+            <input type="text" class="form-control" id="insert-target" placeholder="Target" required>
+          </div>
+          <div class="form-group col-md-2">
+            <input type="text" class="form-control" id="insert-analyzer" placeholder="Tipo análisis" required>
+          </div>
+          <div class="form-group col-md-2">
+            <input type="text" class="form-control" id="insert-username" placeholder="Usuario" required>
+          </div>
+          <div class="form-group col-md-2">
+            <input type="text" class="form-control" id="insert-role" placeholder="Rol" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <textarea class="form-control" id="insert-result" placeholder="Resultado (JSON)" rows="2" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Insertar</button>
+        <button type="button" class="btn btn-secondary ml-2" id="cancel-insert">Cancelar</button>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped" id="admin-analyses-table">
+        <thead class="thead-dark">
+          <tr>
+            <th>Timestamp</th>
+            <th>Target</th>
+            <th>Tipo</th>
+            <th>Usuario</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="admin-analyses-body"></tbody>
+      </table>
+      <nav aria-label="Paginación de análisis">
+        <ul class="pagination justify-content-center" id="admin-pagination"></ul>
+      </nav>
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script src="scripts.js"></script>
+  <script>
+    // Redirigir a login si no es admin
+    $(function() {
+      const role = localStorage.getItem('role');
+      if (role !== 'admin') {
+        window.location.href = 'index.html';
+      } else {
+        $('#logout-btn').removeClass('d-none');
+      }
+    });
+
+    let adminAnalyses = [];
+    let currentPage = 1;
+    const pageSize = 10;
+
+    async function loadAdminAnalyses() {
+      const token = localStorage.getItem('token');
+      const resp = await fetch('/api/admin/analyses', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      adminAnalyses = await resp.json();
+      currentPage = 1;
+      renderAdminAnalysesPage(currentPage);
+    }
+
+    function renderAdminAnalysesPage(page) {
+      const tbody = document.getElementById('admin-analyses-body');
+      tbody.innerHTML = '';
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const pageData = adminAnalyses.slice(start, end);
+      pageData.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${a.timestamp}</td><td>${a.target}</td><td>${a.analyzer}</td><td>${a.username}</td><td>...</td>`;
+        tbody.appendChild(tr);
+      });
+      renderAdminPagination(page);
+    }
+
+    function renderAdminPagination(page) {
+      const totalPages = Math.ceil(adminAnalyses.length / pageSize);
+      const pag = document.getElementById('admin-pagination');
+      pag.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement('li');
+        li.className = 'page-item' + (i === page ? ' active' : '');
+        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+        li.onclick = function(e) { e.preventDefault(); currentPage = i; renderAdminAnalysesPage(i); };
+        pag.appendChild(li);
+      }
+    }
+
+    // Botón Actualizar: restaurado a su funcionamiento original
+    $(function() {
+      $('#refresh-admin-analyses').off('click').on('click', function() {
+        loadAdminAnalyses();
+      });
+    });
+
+    const insertForm = document.getElementById('insert-analysis-form');
+    if (insertForm) {
+      insertForm.onsubmit = async function(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const target = document.getElementById('insert-target').value.trim();
+        const username = document.getElementById('insert-username').value.trim();
+        const analyzer = document.getElementById('insert-analyzer').value.trim();
+        const timestamp = document.getElementById('insert-timestamp').value.trim();
+        const role = document.getElementById('insert-role').value.trim();
+        const result = document.getElementById('insert-result').value.trim();
+        // Buscar si ya existe análisis para ese usuario y target
+        const existing = adminAnalyses.find(a => a.target === target && a.username === username);
+        if (existing) {
+          // Actualizar (PUT)
+          await fetch(`/api/admin/analysis/${existing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ timestamp, target, analyzer, username, role, result })
+          });
+          alert('Actualizado el análisis existente para este usuario y dominio.');
+        } else {
+          // Insertar (POST)
+          await fetch('/api/admin/analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ timestamp, target, analyzer, username, role, result })
+          });
+          alert('Insertado nuevo análisis.');
+        }
+        await loadAdminAnalyses();
+        document.getElementById('admin-insert-form').style.display = 'none';
+      };
+    }
+
+    // Ejemplo: actualizar el total de vulnerabilidades (esto debe hacerse tras cargar los datos reales)
+    function updateDashboardStats(stats) {
+      document.getElementById('dash-total-analyses').textContent = stats.totalAnalyses || '-';
+      document.getElementById('dash-active-users').textContent = stats.activeUsers || '-';
+      document.getElementById('dash-types').textContent = stats.types || '-';
+      document.getElementById('dash-vulns').textContent = stats.vulns || '0';
+    }
+    // Llama a updateDashboardStats({ totalAnalyses: 100, activeUsers: 10, types: 5, vulns: 42 }) tras cargar datos
+
+    // Cargar la lista al entrar
+    loadAdminAnalyses();
+  </script>
+</body>
+</html>

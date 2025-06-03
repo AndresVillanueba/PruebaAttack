@@ -19,21 +19,16 @@ $(function () {
 
   // Transición suave entre login y main-content
   function showMainContent() {
-    $('#login-section').addClass('fade-out').removeClass('fade-in');
-    setTimeout(() => {
-      $('#login-section').hide();
-      $('#main-content').show().addClass('fade-in').removeClass('fade-out');
-      $('#logout-btn').addClass('show').removeClass('d-none');
-      $('#help-btn').addClass('d-none'); // Oculta el help de la navbar tras login
-      $('#help-btn-form').removeClass('d-none'); // Muestra el help del form
-      $('body').addClass('logged-in');
-      $('#login-section').remove();
-      mostrarUsuarioNavbar();
-      // Al mostrar el main-content, asegurar que el historial está cerrado
-      $historySec.hide();
-      $closeHistory.removeClass('show').hide();
-      $historyBtn.show();
-    }, 400);
+    $('#login-section').remove();
+    $('#main-content').show().addClass('fade-in').removeClass('fade-out');
+    $('#logout-btn').addClass('show').removeClass('d-none');
+    $('#help-btn').addClass('d-none');
+    $('#help-btn-form').removeClass('d-none');
+    $('body').addClass('logged-in');
+    mostrarUsuarioNavbar();
+    $historySec.hide();
+    $closeHistory.removeClass('show').hide();
+    $historyBtn.show();
   }
   function showLogin() {
     $('#main-content').addClass('fade-out').removeClass('fade-in');
@@ -59,16 +54,26 @@ $(function () {
     const role = localStorage.getItem('role');
     if (username) {
       $('#user-display').text(username).show();
-      if (role === 'admin') {
-        $('#admin-panel-link').show();
+      if (role) {
+        $('#account-type').text(role === 'admin' ? 'admin' : 'user').show();
       } else {
-        $('#admin-panel-link').hide();
+        $('#account-type').text('user').show();
       }
+      // Forzar visibilidad del badge
+      $('#account-type').css('display', 'inline-block');
     } else {
       $('#user-display').hide();
-      $('#admin-panel-link').hide();
+      $('#account-type').hide();
     }
   }
+
+  // Click en badge de rol: redirige a admin.html si es admin
+  $('#account-type').off('click').on('click', function(e) {
+    e.preventDefault();
+    if ($(this).text().trim().toLowerCase() === 'admin') {
+      window.location.href = 'admin.html';
+    }
+  });
 
   // Login
   $('#login-form').submit(async function(e) {
@@ -84,14 +89,13 @@ $(function () {
         data: JSON.stringify({ username, password })
       });
       if (resp.token) {
-        showMainContent();
         localStorage.setItem('token', resp.token);
         localStorage.setItem('username', username); // Guardar nombre de usuario
         if (resp.role) localStorage.setItem('role', resp.role); // Guardar rol
         $.ajaxSetup({
           headers: { 'Authorization': 'Bearer ' + resp.token }
         });
-        if (resp.role === 'admin') showAdminPanel();
+        showMainContent();
       } else {
         $('#login-error').text('Usuario o contraseña incorrectos').fadeIn();
       }
@@ -892,11 +896,17 @@ document.getElementById('insert-analysis-form').onsubmit = async function(e) {
 // Mostrar panel admin si corresponde al cargar la página
 if (isAdmin()) showAdminPanel();
 
-// Mostrar/ocultar panel admin como página dedicada
-$('#admin-panel-link').click(function(e) {
+// Mostrar panel admin como modal
+$('#admin-panel-link').off('click').on('click', function(e) {
   e.preventDefault();
-  $('#main-content').hide();
-  $('#admin-panel').show();
+  $('#admin-panel-modal').modal('show');
+  // Cargar datos si es necesario
+  if (typeof loadAdminAnalyses === 'function') loadAdminAnalyses();
+});
+
+// Al cargar la página, el panel admin siempre oculto
+$(document).ready(function() {
+  $('#admin-panel').hide();
 });
 
 // Si el usuario sale del panel admin, volver al main-content
@@ -911,9 +921,9 @@ $('#user-display').off('click').on('click', function(e) {
   e.stopPropagation();
   $('#user-dropdown').toggle();
 });
-// Ocultar el menú si se hace clic fuera
+// Ocultar el dropdown al hacer click fuera
 $(document).on('click', function(e) {
-  if (!$(e.target).closest('#user-dropdown, #user-display').length) {
+  if (!$(e.target).closest('#user-dropdown').length && !$(e.target).is('#user-display')) {
     $('#user-dropdown').hide();
   }
 });
