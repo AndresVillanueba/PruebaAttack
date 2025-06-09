@@ -56,7 +56,7 @@ npm install
 ```
 
 ### 3. Configuración de entorno
-- Edita `config.json` y variables de entorno necesarias (OpenSearch, JWT, etc.).
+- Configura las variables de entorno necesarias (OpenSearch, JWT, etc.) en un archivo `.env`.
 - Asegúrate de que OpenSearch está corriendo y accesible.
 
 ### 4. Ingesta de datos MITRE y arranque

@@ -9,6 +9,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
+  <script>
+    // Security check - if not admin, redirect to index
+    (function() {
+      const token = localStorage.getItem('token');
+      const role = localStorage.getItem('role');
+      if (!token || role !== 'admin') {
+        window.location.href = 'index.html';
+      }
+    })();
+  </script>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
     <a class="navbar-brand d-flex align-items-center" href="index.html" style="font-weight:700; font-size:1.3em;">
       <span>ATTACK-SENTINEL</span>
@@ -22,104 +32,233 @@
   </nav>
   <div class="container mt-5">
     <h2 class="mb-4" style="font-weight:700; color:#b36b00;">Panel de Administración</h2>
-    <div class="row mb-4" id="admin-dashboard">
-      <div class="col-md-3 mb-2">
-        <div class="card text-white bg-primary h-100">
-          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
-            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Total análisis</h5>
-            <p class="card-text mb-0 font-weight-bold" id="dash-total-analyses" style="font-size:1.5em; word-break:break-all;">-</p>
+    
+    <!-- Menú de navegación de pestañas -->
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="dashboard-tab" data-toggle="tab" href="#dashboard" role="tab">Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="analyses-tab" data-toggle="tab" href="#analyses" role="tab">Análisis</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="users-tab" data-toggle="tab" href="#users" role="tab">Usuarios</a>
+      </li>
+    </ul>
+    
+    <!-- Contenido de las pestañas -->
+    <div class="tab-content" id="adminTabContent">
+      <!-- DASHBOARD -->
+      <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+        <div class="row mb-4" id="admin-dashboard">
+          <div class="col-md-3 mb-2">
+            <div class="card text-white bg-primary h-100">
+              <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+                <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Total análisis</h5>
+                <p class="card-text mb-0 font-weight-bold" id="dash-total-analyses" style="font-size:1.5em; word-break:break-all;">-</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-2">
+            <div class="card text-white bg-primary h-100">
+              <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+                <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Usuarios activos</h5>
+                <p class="card-text mb-0 font-weight-bold" id="dash-active-users" style="font-size:1.5em; word-break:break-all;">-</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-2">
+            <div class="card text-white bg-primary h-100">
+              <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+                <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Tipos de análisis</h5>
+                <p class="card-text mb-0 font-weight-bold" id="dash-types" style="font-size:1.5em; word-break:break-all;">-</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3 mb-2">
+            <div class="card text-white bg-primary h-100">
+              <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
+                <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Vulnerabilidades detectadas</h5>
+                <p class="card-text mb-0 font-weight-bold" id="dash-vulns" style="font-size:1.5em; word-break:break-all;">0</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-3 mb-2">
-        <div class="card text-white bg-primary h-100">
-          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
-            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Usuarios activos</h5>
-            <p class="card-text mb-0 font-weight-bold" id="dash-active-users" style="font-size:1.5em; word-break:break-all;">-</p>
-          </div>
+      
+      <!-- ANÁLISIS -->
+      <div class="tab-pane fade" id="analyses" role="tabpanel">        <div id="admin-notifications" class="alert alert-info" style="display:none;"></div>
+        <form id="admin-search-form" class="form-inline mb-3">
+          <input type="text" class="form-control mr-2 mb-2" id="filter-user" placeholder="Nombre de usuario (ej: adminsentinel)">
+          <input type="text" class="form-control mr-2 mb-2" id="filter-type" placeholder="Tipo análisis">
+          <input type="text" class="form-control mr-2 mb-2" id="filter-target" placeholder="Target">
+          <input type="date" class="form-control mr-2 mb-2" id="filter-from">
+          <input type="date" class="form-control mr-2 mb-2" id="filter-to">
+          <button type="submit" class="btn btn-primary mb-2">Buscar</button>
+          <button type="button" class="btn btn-link mb-2" id="clear-admin-filters">Limpiar</button>
+          <button type="button" class="btn btn-outline-success mb-2 ml-2" id="export-analyses-csv">Exportar CSV</button>
+        </form>        <script>
+          // Ensure search form triggers filtering
+          document.getElementById('admin-search-form').onsubmit = function(e) {
+            e.preventDefault();
+            console.log('Ejecutando búsqueda de análisis...');
+            console.log('Filtros:', {
+              usuario: document.getElementById('filter-user').value.trim(),
+              tipo: document.getElementById('filter-type').value.trim(),
+              target: document.getElementById('filter-target').value.trim(),
+              desde: document.getElementById('filter-from').value,
+              hasta: document.getElementById('filter-to').value
+            });
+            loadAdminAnalyses();
+          };
+        </script>
+        <div class="mb-3">
+          <button class="btn btn-success" id="refresh-admin-analyses">Actualizar</button>
+        </div>        <div class="table-responsive">
+          <table class="table table-bordered table-striped" id="admin-analyses-table">
+            <thead class="thead-dark">
+              <tr>
+                <th>Timestamp</th>
+                <th>Target</th>
+                <th>Tipo</th>
+                <th>Usuario</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="admin-analyses-body">
+              <!-- Contenido dinámico de análisis -->
+            </tbody>
+          </table>
+          <nav aria-label="Paginación de análisis">
+            <ul class="pagination justify-content-center" id="admin-pagination"></ul>
+          </nav>
         </div>
       </div>
-      <div class="col-md-3 mb-2">
-        <div class="card text-white bg-primary h-100">
-          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
-            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Tipos de análisis</h5>
-            <p class="card-text mb-0 font-weight-bold" id="dash-types" style="font-size:1.5em; word-break:break-all;">-</p>
-          </div>
+        <!-- USUARIOS -->
+      <div class="tab-pane fade" id="users" role="tabpanel">
+        <div id="user-notifications" class="alert alert-info" style="display:none;"></div>        <!-- Formulario de búsqueda para usuarios -->
+        <form id="user-search-form" class="form-inline mb-3">
+          <input type="text" class="form-control mr-2 mb-2" id="filter-username" placeholder="Buscar por nombre, email o rol">
+          <button type="submit" class="btn btn-primary mb-2">Buscar</button>
+          <button type="button" class="btn btn-link mb-2" id="clear-user-filters">Limpiar</button>
+        </form>
+        <div class="mb-3">
+          <button class="btn btn-success" id="refresh-users">Actualizar</button>
+          <button class="btn btn-primary ml-2" id="show-insert-user-form">Nuevo usuario</button>
+        </div>
+        <div id="user-insert-form" style="display:none;" class="mb-4">
+          <h5>Gestionar usuario</h5>
+          <form id="insert-user-form">
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label for="insert-username">Usuario</label>
+                <input type="text" class="form-control" id="insert-username-user" placeholder="Nombre de usuario" required>
+              </div>
+              <div class="form-group col-md-4">
+                <label for="insert-email">Email</label>
+                <input type="email" class="form-control" id="insert-email" placeholder="Correo electrónico">
+              </div>
+              <div class="form-group col-md-4">
+                <label for="insert-role-user">Rol</label>
+                <select class="form-control" id="insert-role-user" required>
+                  <option value="user">Usuario</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label for="insert-password">Contraseña</label>
+                <input type="password" class="form-control" id="insert-password" placeholder="Dejar en blanco para no cambiar">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="insert-password-confirm">Confirmar contraseña</label>
+                <input type="password" class="form-control" id="insert-password-confirm" placeholder="Confirmar contraseña">
+              </div>
+            </div>
+            <input type="hidden" id="edit-user-mode" value="create">
+            <button type="submit" class="btn btn-success" id="save-user-btn">Guardar</button>
+            <button type="button" class="btn btn-secondary ml-2" id="cancel-insert-user">Cancelar</button>
+          </form>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped" id="admin-users-table">
+            <thead class="thead-dark">
+              <tr>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Creado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-body"></tbody>
+          </table>
         </div>
       </div>
-      <div class="col-md-3 mb-2">
-        <div class="card text-white bg-primary h-100">
-          <div class="card-body d-flex flex-column align-items-center justify-content-center p-2">
-            <h5 class="card-title text-center mb-1" style="font-size:0.98em; word-break:break-word;">Vulnerabilidades detectadas</h5>
-            <p class="card-text mb-0 font-weight-bold" id="dash-vulns" style="font-size:1.5em; word-break:break-all;">0</p>
-          </div>
+    </div>  </div>
+
+  <!-- Modales de confirmación -->
+  <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirmar eliminación</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-delete-message">¿Está seguro de que desea eliminar este elemento?</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirm-delete-btn">Eliminar</button>
         </div>
       </div>
-    </div>
-    <div id="admin-notifications" class="alert alert-info" style="display:none;"></div>
-    <form id="admin-search-form" class="form-inline mb-3">
-      <input type="text" class="form-control mr-2 mb-2" id="filter-user" placeholder="Usuario">
-      <input type="text" class="form-control mr-2 mb-2" id="filter-type" placeholder="Tipo análisis">
-      <input type="text" class="form-control mr-2 mb-2" id="filter-target" placeholder="Target">
-      <input type="date" class="form-control mr-2 mb-2" id="filter-from">
-      <input type="date" class="form-control mr-2 mb-2" id="filter-to">
-      <button type="submit" class="btn btn-primary mb-2">Buscar</button>
-      <button type="button" class="btn btn-link mb-2" id="clear-admin-filters">Limpiar</button>
-      <button type="button" class="btn btn-outline-success mb-2 ml-2" id="export-analyses-csv">Exportar CSV</button>
-    </form>
-    <div class="mb-3">
-      <button class="btn btn-success" id="refresh-admin-analyses">Actualizar</button>
-      <button class="btn btn-primary ml-2" id="show-insert-form">Insertar nuevo análisis</button>
-    </div>
-    <div id="admin-insert-form" style="display:none;" class="mb-4">
-      <h5>Insertar análisis manualmente</h5>
-      <form id="insert-analysis-form">
-        <div class="form-row">
-          <div class="form-group col-md-3">
-            <input type="text" class="form-control" id="insert-timestamp" placeholder="Timestamp (ISO)" required>
-          </div>
-          <div class="form-group col-md-2">
-            <input type="text" class="form-control" id="insert-target" placeholder="Target" required>
-          </div>
-          <div class="form-group col-md-2">
-            <input type="text" class="form-control" id="insert-analyzer" placeholder="Tipo análisis" required>
-          </div>
-          <div class="form-group col-md-2">
-            <input type="text" class="form-control" id="insert-username" placeholder="Usuario" required>
-          </div>
-          <div class="form-group col-md-2">
-            <input type="text" class="form-control" id="insert-role" placeholder="Rol" required>
-          </div>
-        </div>
-        <div class="form-group">
-          <textarea class="form-control" id="insert-result" placeholder="Resultado (JSON)" rows="2" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-success">Insertar</button>
-        <button type="button" class="btn btn-secondary ml-2" id="cancel-insert">Cancelar</button>
-      </form>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped" id="admin-analyses-table">
-        <thead class="thead-dark">
-          <tr>
-            <th>Timestamp</th>
-            <th>Target</th>
-            <th>Tipo</th>
-            <th>Usuario</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="admin-analyses-body"></tbody>
-      </table>
-      <nav aria-label="Paginación de análisis">
-        <ul class="pagination justify-content-center" id="admin-pagination"></ul>
-      </nav>
     </div>
   </div>
+
+  <!-- Modal para reportar análisis -->
+  <div class="modal fade" id="reportAnalysisModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Reportar análisis</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="report-analysis-form">
+            <div class="form-group">
+              <label for="report-reason">Motivo del reporte</label>
+              <textarea class="form-control" id="report-reason" rows="3" placeholder="Indique el motivo del reporte" required></textarea>
+            </div>
+            <input type="hidden" id="report-analysis-id">
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-warning" id="confirm-report-btn">Reportar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
   <script src="scripts.js"></script>
   <script>
+    // Redirigir automáticamente a index.html si no hay token o no es admin/user
+    (function() {
+      const role = localStorage.getItem('role');
+      const token = localStorage.getItem('token');
+      if (!token || (role !== 'admin' && role !== 'user')) {
+        window.location.href = 'index.html';
+      }
+    })();
+
     // Redirigir a login si no es admin
     $(function() {
       const role = localStorage.getItem('role');
@@ -128,20 +267,103 @@
       } else {
         $('#logout-btn').removeClass('d-none');
       }
+      
+      // Cargar datos iniciales
+      loadDashboardStats();
+      loadAdminAnalyses();
+      loadUsers();
     });
 
+    // ===== GESTIÓN DE ANÁLISIS =====
     let adminAnalyses = [];
     let currentPage = 1;
     const pageSize = 10;
 
     async function loadAdminAnalyses() {
-      const token = localStorage.getItem('token');
-      const resp = await fetch('/api/admin/analyses', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      adminAnalyses = await resp.json();
-      currentPage = 1;
-      renderAdminAnalysesPage(currentPage);
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/admin/analyses', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al cargar análisis');
+        }
+          adminAnalyses = await resp.json();
+        
+        // Verificar si hay filtros activos
+        const hasUserFilter = document.getElementById('filter-user').value.trim() !== '';
+        const hasTypeFilter = document.getElementById('filter-type').value.trim() !== '';
+        const hasTargetFilter = document.getElementById('filter-target').value.trim() !== '';
+        const hasDateFilter = document.getElementById('filter-from').value !== '' || document.getElementById('filter-to').value !== '';
+        
+        // Aplicar filtros si están presentes
+        let filteredAnalyses = [...adminAnalyses];
+        const userFilter = document.getElementById('filter-user').value.trim().toLowerCase();
+        
+        if (userFilter) {
+          console.log('Filtrando por usuario:', userFilter);
+          filteredAnalyses = filteredAnalyses.filter(a => 
+            (a.username || '').toLowerCase().includes(userFilter)
+          );
+          console.log('Análisis después de filtrar por usuario:', filteredAnalyses.length);
+        }
+        
+        if (hasTypeFilter) {
+          const typeFilter = document.getElementById('filter-type').value.trim().toLowerCase();
+          filteredAnalyses = filteredAnalyses.filter(a => 
+            (a.analyzer || '').toLowerCase().includes(typeFilter)
+          );
+        }
+        
+        if (hasTargetFilter) {
+          const targetFilter = document.getElementById('filter-target').value.trim().toLowerCase();
+          filteredAnalyses = filteredAnalyses.filter(a => 
+            (a.target || '').toLowerCase().includes(targetFilter)
+          );
+        }
+        
+        if (hasDateFilter) {
+          const fromDate = document.getElementById('filter-from').value;
+          const toDate = document.getElementById('filter-to').value;
+          
+          filteredAnalyses = filteredAnalyses.filter(a => {
+            const date = new Date(a.timestamp);
+            let matchesFilter = true;
+            
+            if (fromDate) {
+              matchesFilter = matchesFilter && date >= new Date(fromDate);
+            }
+            
+            if (toDate) {
+              matchesFilter = matchesFilter && date <= new Date(toDate);
+            }
+            
+            return matchesFilter;
+          });
+        }
+        
+        // Actualizar la lista de análisis con los resultados filtrados
+        adminAnalyses = filteredAnalyses;
+        currentPage = 1;
+        renderAdminAnalysesPage(currentPage);
+        
+        // Mostrar un mensaje específico dependiendo de si se aplicaron filtros
+        if (hasUserFilter || hasTypeFilter || hasTargetFilter || hasDateFilter) {
+          const filterDesc = [];
+          if (userFilter) filterDesc.push(`usuario "${userFilter}"`);
+          if (hasTypeFilter) filterDesc.push("tipo de análisis");
+          if (hasTargetFilter) filterDesc.push("target");
+          if (hasDateFilter) filterDesc.push("rango de fechas");
+          
+          showNotification('analyses', 'info', `Se encontraron ${adminAnalyses.length} análisis para ${filterDesc.join(" y ")}.`);
+        } else {
+          showNotification('analyses', 'success', `Se han cargado ${adminAnalyses.length} análisis correctamente.`);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('analyses', 'danger', 'Error al cargar análisis: ' + error.message);
+      }
     }
 
     function renderAdminAnalysesPage(page) {
@@ -150,11 +372,40 @@
       const start = (page - 1) * pageSize;
       const end = start + pageSize;
       const pageData = adminAnalyses.slice(start, end);
+      
+      if (pageData.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-center">No hay análisis disponibles</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+      
       pageData.forEach(a => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${a.timestamp}</td><td>${a.target}</td><td>${a.analyzer}</td><td>${a.username}</td><td>...</td>`;
+        tr.innerHTML = `
+          <td>${formatDate(a.timestamp)}</td>
+          <td>${a.target}</td>
+          <td>${a.analyzer}</td>
+          <td>${a.username}</td>          <td>
+            <button class="btn btn-sm btn-info view-analysis" data-id="${a.id}" title="Ver detalles">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-warning report-analysis" data-id="${a.id}" title="Reportar análisis">
+              <i class="fas fa-flag"></i>
+            </button>
+          </td>
+        `;
         tbody.appendChild(tr);
       });
+        // Agregar eventos a los botones
+      document.querySelectorAll('.view-analysis').forEach(btn => {
+        btn.addEventListener('click', () => viewAnalysis(btn.dataset.id));
+      });
+      
+      document.querySelectorAll('.report-analysis').forEach(btn => {
+        btn.addEventListener('click', () => reportAnalysis(btn.dataset.id));
+      });
+      
       renderAdminPagination(page);
     }
 
@@ -162,68 +413,686 @@
       const totalPages = Math.ceil(adminAnalyses.length / pageSize);
       const pag = document.getElementById('admin-pagination');
       pag.innerHTML = '';
+      
+      if (totalPages <= 1) return;
+      
+      // Botón Anterior
+      const prevLi = document.createElement('li');
+      prevLi.className = 'page-item' + (page === 1 ? ' disabled' : '');
+      prevLi.innerHTML = `<a class="page-link" href="#">&laquo;</a>`;
+      prevLi.onclick = function(e) { 
+        e.preventDefault(); 
+        if (page > 1) {
+          currentPage = page - 1; 
+          renderAdminAnalysesPage(currentPage);
+        }
+      };
+      pag.appendChild(prevLi);
+      
+      // Páginas
       for (let i = 1; i <= totalPages; i++) {
+        if (totalPages > 7) {
+          // Mostrar solo algunas páginas si hay muchas
+          if (i !== 1 && i !== totalPages && (i < page - 1 || i > page + 1)) {
+            if (i === 2 || i === totalPages - 1) {
+              const ellipsis = document.createElement('li');
+              ellipsis.className = 'page-item disabled';
+              ellipsis.innerHTML = `<a class="page-link" href="#">...</a>`;
+              pag.appendChild(ellipsis);
+            }
+            continue;
+          }
+        }
+        
         const li = document.createElement('li');
         li.className = 'page-item' + (i === page ? ' active' : '');
         li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-        li.onclick = function(e) { e.preventDefault(); currentPage = i; renderAdminAnalysesPage(i); };
+        li.onclick = function(e) { 
+          e.preventDefault(); 
+          currentPage = i; 
+          renderAdminAnalysesPage(i); 
+        };
         pag.appendChild(li);
+      }
+      
+      // Botón Siguiente
+      const nextLi = document.createElement('li');
+      nextLi.className = 'page-item' + (page === totalPages ? ' disabled' : '');
+      nextLi.innerHTML = `<a class="page-link" href="#">&raquo;</a>`;
+      nextLi.onclick = function(e) { 
+        e.preventDefault(); 
+        if (page < totalPages) {
+          currentPage = page + 1; 
+          renderAdminAnalysesPage(currentPage);
+        } 
+      };
+      pag.appendChild(nextLi);
+    }
+
+    function viewAnalysis(id) {
+      const analysis = adminAnalyses.find(a => a.id === id);
+      if (!analysis) return;
+      
+      let resultStr = '';
+      try {
+        resultStr = JSON.stringify(analysis.result, null, 2);
+      } catch (e) {
+        resultStr = String(analysis.result || '');
+      }
+      
+      alert(`Detalles del análisis:\n\nID: ${id}\nFecha: ${analysis.timestamp}\nTarget: ${analysis.target}\nTipo: ${analysis.analyzer}\nUsuario: ${analysis.username}\n\nResultado:\n${resultStr}`);
+    }    function reportAnalysis(id) {
+      const analysis = adminAnalyses.find(a => a.id === id);
+      if (!analysis) return;
+      
+      // Mostrar modal de reporte
+      $('#reportAnalysisModal').modal('show');
+      
+      // Llenar campo de motivo con texto por defecto
+      const reasonInput = document.getElementById('report-reason');
+      reasonInput.value = `Análisis realizado sin permisos por ${analysis.username} en ${analysis.target}`;
+      
+      // Configurar botón de confirmación
+      const confirmBtn = document.getElementById('confirm-report-btn');
+      confirmBtn.onclick = async () => {
+        const reason = reasonInput.value.trim();
+        if (!reason) {
+          alert('El motivo del reporte no puede estar vacío');
+          return;
+        }
+        
+        await reportAnalysisToServer(id, reason, localStorage.getItem('username'));
+        $('#reportAnalysisModal').modal('hide');
+      };
+    }
+
+    async function reportAnalysisToServer(id, reason, reportedBy) {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/admin/analysis/${id}/report`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': 'Bearer ' + token 
+          },
+          body: JSON.stringify({ 
+            reason, 
+            reportedBy 
+          })
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al reportar análisis');
+        }
+        
+        showNotification('analyses', 'success', 'Análisis reportado correctamente');
+        await loadAdminAnalyses();
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('analyses', 'danger', 'Error al reportar análisis: ' + error.message);
       }
     }
 
-    // Botón Actualizar: restaurado a su funcionamiento original
-    $(function() {
-      $('#refresh-admin-analyses').off('click').on('click', function() {
+    function confirmDeleteAnalysis(id) {
+      const analysis = adminAnalyses.find(a => a.id === id);
+      if (!analysis) return;
+      
+      // Configurar modal
+      document.getElementById('confirm-delete-message').textContent = 
+        `¿Está seguro de que desea eliminar el análisis de "${analysis.target}" realizado por "${analysis.username}"?`;
+      
+      // Configurar botón de confirmación
+      const confirmBtn = document.getElementById('confirm-delete-btn');
+      confirmBtn.onclick = async () => {
+        await deleteAnalysis(id);
+        $('#confirmDeleteModal').modal('hide');
+      };
+      
+      // Mostrar modal
+      $('#confirmDeleteModal').modal('show');
+    }
+
+    async function deleteAnalysis(id) {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/admin/analysis/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al eliminar análisis');
+        }
+        
+        showNotification('analyses', 'success', 'Análisis eliminado correctamente');
+        await loadAdminAnalyses();
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('analyses', 'danger', 'Error al eliminar análisis: ' + error.message);
+      }
+    }
+
+    // ===== GESTIÓN DE USUARIOS =====
+    let adminUsers = [];
+
+    async function loadUsers() {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/admin/users', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al cargar usuarios');
+        }
+        
+        adminUsers = await resp.json();
+        renderUsers();
+        
+        showNotification('users', 'success', `Se han cargado ${adminUsers.length} usuarios correctamente.`);
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('users', 'danger', 'Error al cargar usuarios: ' + error.message);
+      }
+    }    function renderUsers() {
+      const tbody = document.getElementById('admin-users-body');
+      tbody.innerHTML = '';
+      
+      // Obtener el término de búsqueda
+      const searchTerm = document.getElementById('filter-username').value.trim().toLowerCase();
+      
+      // Filtrar usuarios si hay un término de búsqueda
+      let filteredUsers = adminUsers;
+      if (searchTerm) {
+        // Mejorada: búsqueda más robusta con coincidencias parciales
+        filteredUsers = adminUsers.filter(user => {
+          const username = (user.username || '').toLowerCase();
+          const email = (user.email || '').toLowerCase();
+          const role = (user.role || '').toLowerCase();
+          
+          // Verificar coincidencias en cualquiera de los campos
+          return username.includes(searchTerm) || 
+                 email.includes(searchTerm) || 
+                 role.includes(searchTerm);
+        });
+        
+        // Depuración para verificar el filtrado
+        console.log('Término de búsqueda de usuario:', searchTerm);
+        console.log('Usuarios encontrados:', filteredUsers.length);
+        if (filteredUsers.length > 0) {
+          console.log('Ejemplo de usuario encontrado:', filteredUsers[0].username);
+        }
+      }
+        if (filteredUsers.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-center">No hay usuarios disponibles o que coincidan con la búsqueda</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      filteredUsers.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.username}</td>
+          <td>${user.email || '-'}</td>
+          <td><span class="badge badge-${user.role === 'admin' ? 'danger' : 'primary'}">${user.role || 'user'}</span></td>
+          <td>${user.createdAt ? formatDate(user.createdAt) : '-'}</td>          <td>
+            <button class="btn btn-sm btn-warning edit-user" data-username="${user.username}" title="Editar">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-info view-user-analyses" data-username="${user.username}" title="Ver historial de análisis">
+              <i class="fas fa-history"></i>
+            </button>
+            <button class="btn btn-sm btn-danger delete-user" data-username="${user.username}" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+        // Agregar eventos a los botones
+      document.querySelectorAll('.edit-user').forEach(btn => {
+        btn.addEventListener('click', () => editUser(btn.dataset.username));
+      });
+      
+      document.querySelectorAll('.view-user-analyses').forEach(btn => {
+        btn.addEventListener('click', () => viewUserAnalyses(btn.dataset.username));
+      });
+      
+      document.querySelectorAll('.delete-user').forEach(btn => {
+        btn.addEventListener('click', () => confirmDeleteUser(btn.dataset.username));
+      });
+    }    async function viewUserAnalyses(username) {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/admin/users/${username}/analyses`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al cargar historial de análisis');
+        }
+        
+        const userAnalyses = await resp.json();
+        
+        // Cambiar a pestaña de análisis
+        $('#adminTabs a[href="#analyses"]').tab('show');
+        
+        // Filtrar la tabla
+        adminAnalyses = userAnalyses;
+        currentPage = 1;
+        
+        // Renderizar con botones de eliminación
+        renderUserAnalysesPage(username, currentPage);
+        
+        // Actualizar título
+        showNotification('analyses', 'info', `Mostrando ${userAnalyses.length} análisis del usuario ${username}`);
+        
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('users', 'danger', 'Error al cargar historial de análisis: ' + error.message);
+      }
+    }
+    
+    function renderUserAnalysesPage(username, page) {
+      const tbody = document.getElementById('admin-analyses-body');
+      tbody.innerHTML = '';
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const pageData = adminAnalyses.slice(start, end);
+      
+      if (pageData.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-center">No hay análisis disponibles para este usuario</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      pageData.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatDate(a.timestamp)}</td>
+          <td>${a.target}</td>
+          <td>${a.analyzer}</td>
+          <td>${a.username}</td>
+          <td>
+            <button class="btn btn-sm btn-info view-analysis" data-id="${a.id}" title="Ver detalles">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-warning report-analysis" data-id="${a.id}" title="Reportar análisis">
+              <i class="fas fa-flag"></i>
+            </button>
+            <button class="btn btn-sm btn-danger delete-analysis-history" data-id="${a.id}" title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+      // Agregar eventos a los botones
+      document.querySelectorAll('.view-analysis').forEach(btn => {
+        btn.addEventListener('click', () => viewAnalysis(btn.dataset.id));
+      });
+      
+      document.querySelectorAll('.report-analysis').forEach(btn => {
+        btn.addEventListener('click', () => reportAnalysis(btn.dataset.id));
+      });
+      
+      document.querySelectorAll('.delete-analysis-history').forEach(btn => {
+        btn.addEventListener('click', () => confirmDeleteAnalysisFromHistory(btn.dataset.id));
+      });
+      
+      // Agregar botón para volver
+      const backButton = document.createElement('button');
+      backButton.className = 'btn btn-secondary mt-3 mb-3';
+      backButton.textContent = 'Volver a todos los análisis';
+      backButton.addEventListener('click', () => {
         loadAdminAnalyses();
       });
+      
+      // Insertar botón antes de la tabla
+      const tableContainer = document.querySelector('.table-responsive');
+      tableContainer.parentNode.insertBefore(backButton, tableContainer);
+      
+      renderAdminPagination(page);
+    }
+
+    function editUser(username) {
+      const user = adminUsers.find(u => u.username === username);
+      if (!user) return;
+      
+      // Mostrar formulario
+      document.getElementById('user-insert-form').style.display = 'block';
+      document.getElementById('insert-username-user').value = user.username || '';
+      document.getElementById('insert-email').value = user.email || '';
+      document.getElementById('insert-role-user').value = user.role || 'user';
+      
+      // Limpiar campos de contraseña
+      document.getElementById('insert-password').value = '';
+      document.getElementById('insert-password-confirm').value = '';
+      
+      // Cambiar a modo edición
+      document.getElementById('edit-user-mode').value = 'edit';
+      document.getElementById('save-user-btn').textContent = 'Actualizar';
+      
+      // Deshabilitar campo de usuario si es edición
+      document.getElementById('insert-username-user').readOnly = true;
+      
+      // Scroll al formulario
+      document.getElementById('user-insert-form').scrollIntoView({ behavior: 'smooth' });
+    }    function confirmDeleteUser(username) {
+      const user = adminUsers.find(u => u.username === username);
+      if (!user) return;
+      
+      // Evitar eliminar al usuario actual
+      if (username === localStorage.getItem('username')) {
+        alert('No puedes eliminar tu propio usuario');
+        return;
+      }
+      
+      // Configurar modal
+      document.getElementById('confirm-delete-message').textContent = 
+        `¿Está seguro de que desea eliminar al usuario "${username}"?`;
+      
+      // Configurar botón de confirmación
+      const confirmBtn = document.getElementById('confirm-delete-btn');
+      confirmBtn.dataset.type = 'user';
+      confirmBtn.dataset.id = username;
+      
+      // Mostrar modal
+      $('#confirmDeleteModal').modal('show');
+    }
+    
+    // Manejar click en botón de confirmar eliminación
+    $(document).on('click', '#confirm-delete-btn', async function() {
+      const type = this.dataset.type;
+      const id = this.dataset.id;
+      
+      if (type === 'user') {
+        await deleteUser(id);
+      } else if (type === 'analysis') {
+        await deleteAnalysis(id);
+      }
+      
+      $('#confirmDeleteModal').modal('hide');
     });
 
-    const insertForm = document.getElementById('insert-analysis-form');
-    if (insertForm) {
-      insertForm.onsubmit = async function(e) {
+    async function deleteUser(username) {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/admin/users/${username}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al eliminar usuario');
+        }
+        
+        showNotification('users', 'success', 'Usuario eliminado correctamente');
+        await loadUsers();
+      } catch (error) {
+        console.error('Error:', error);
+        showNotification('users', 'danger', 'Error al eliminar usuario: ' + error.message);
+      }
+    }
+
+    // ===== DASHBOARD STATS =====
+    async function loadDashboardStats() {
+      try {
+        const token = localStorage.getItem('token');
+        const resp = await fetch('/api/admin/stats', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (!resp.ok) {
+          throw new Error('Error al cargar estadísticas');
+        }
+        
+        const stats = await resp.json();
+        updateDashboardStats(stats);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    }
+
+    function updateDashboardStats(stats) {
+      document.getElementById('dash-total-analyses').textContent = stats.totalAnalyses || '0';
+      document.getElementById('dash-active-users').textContent = stats.activeUsers || '0';
+      document.getElementById('dash-types').textContent = stats.types || '0';
+      document.getElementById('dash-vulns').textContent = stats.vulns || '0';
+    }
+
+    // ===== UTILIDADES =====
+    function formatDate(dateStr) {
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleString('es-ES');
+      } catch (e) {
+        return dateStr;
+      }
+    }    function showNotification(tabId, type, message) {
+      const notificationEl = tabId === 'users' ? 
+        document.getElementById('user-notifications') : 
+        document.getElementById('admin-notifications');
+      
+      notificationEl.className = `alert alert-${type}`;
+      notificationEl.textContent = message;
+      notificationEl.style.display = 'block';
+      
+      // Solo ocultar automáticamente para mensajes de éxito y error, mantener los informativos visibles
+      if (type !== 'info') {
+        setTimeout(() => {
+          notificationEl.style.display = 'none';
+        }, 5000);
+      }
+    }// ===== EVENT LISTENERS =====
+    // Botones de actualización
+    $(function() {
+      $('#refresh-admin-analyses').off('click').on('click', function() {
+        // Eliminar botones de "volver" que pudieran existir
+        document.querySelectorAll('.btn.btn-secondary.mt-3.mb-3').forEach(btn => {
+          btn.remove();
+        });
+        loadAdminAnalyses();
+      });
+        $('#refresh-users').off('click').on('click', function() {
+        loadUsers();
+      });
+        // Búsqueda de usuarios
+      $('#user-search-form').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        console.log('Ejecutando búsqueda de usuarios...');
+        console.log('Término de búsqueda:', document.getElementById('filter-username').value.trim());
+        console.log('Total usuarios antes de filtrar:', adminUsers.length);
+        renderUsers(); // Renderizar con el filtro aplicado
+      });
+        // Limpiar filtros de análisis
+      $('#clear-admin-filters').off('click').on('click', function() {
+        document.getElementById('filter-user').value = '';
+        document.getElementById('filter-type').value = '';
+        document.getElementById('filter-target').value = '';
+        document.getElementById('filter-from').value = '';
+        document.getElementById('filter-to').value = '';
+        
+        // Ocultar notificación de filtrado
+        const notificationEl = document.getElementById('admin-notifications');
+        notificationEl.style.display = 'none';
+        
+        // Recargar todos los análisis
+        loadAdminAnalyses();
+      });
+      
+      // Mostrar formulario de inserción de análisis
+      $('#show-insert-form').off('click').on('click', function() {
+        // Limpiar formulario
+        document.getElementById('insert-analysis-form').reset();
+        document.getElementById('edit-analysis-id').value = '';
+        document.getElementById('insert-analysis-btn').textContent = 'Insertar';
+        document.getElementById('admin-insert-form').style.display = 'block';
+      });
+      
+      // Cancelar inserción de análisis
+      $('#cancel-insert').off('click').on('click', function() {
+        document.getElementById('admin-insert-form').style.display = 'none';
+      });
+      
+      // Mostrar formulario de inserción de usuario
+      $('#show-insert-user-form').off('click').on('click', function() {
+        // Limpiar formulario
+        document.getElementById('insert-user-form').reset();
+        document.getElementById('edit-user-mode').value = 'create';
+        document.getElementById('save-user-btn').textContent = 'Guardar';
+        document.getElementById('insert-username-user').readOnly = false;
+        document.getElementById('user-insert-form').style.display = 'block';
+      });
+      
+      // Cancelar inserción de usuario
+      $('#cancel-insert-user').off('click').on('click', function() {
+        document.getElementById('user-insert-form').style.display = 'none';
+      });
+      
+      // Formulario de inserción/edición de análisis
+      $('#insert-analysis-form').off('submit').on('submit', async function(e) {
         e.preventDefault();
         const token = localStorage.getItem('token');
         const target = document.getElementById('insert-target').value.trim();
         const username = document.getElementById('insert-username').value.trim();
         const analyzer = document.getElementById('insert-analyzer').value.trim();
-        const timestamp = document.getElementById('insert-timestamp').value.trim();
+        const timestamp = document.getElementById('insert-timestamp').value.trim() || new Date().toISOString();
         const role = document.getElementById('insert-role').value.trim();
         const result = document.getElementById('insert-result').value.trim();
-        // Buscar si ya existe análisis para ese usuario y target
-        const existing = adminAnalyses.find(a => a.target === target && a.username === username);
-        if (existing) {
-          // Actualizar (PUT)
-          await fetch(`/api/admin/analysis/${existing.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ timestamp, target, analyzer, username, role, result })
-          });
-          alert('Actualizado el análisis existente para este usuario y dominio.');
-        } else {
-          // Insertar (POST)
-          await fetch('/api/admin/analysis', {
+        const id = document.getElementById('edit-analysis-id').value.trim();
+        
+        try {
+          let resp;
+            if (id) {
+            // Reportar (PUT)
+            resp = await fetch(`/api/admin/analysis/${id}/report`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ 
+                reason: "Actualización manual desde panel de administración", 
+                reportedBy: localStorage.getItem('username'),
+                data: { timestamp, target, analyzer, username, role, result }
+              })
+            });
+            
+            if (!resp.ok) {
+              throw new Error('Error al reportar análisis');
+            }
+            
+            showNotification('analyses', 'success', 'Análisis reportado correctamente');
+          } else {
+            // Insertar (POST)
+            resp = await fetch('/api/admin/analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ timestamp, target, analyzer, username, role, result })
+            });
+            
+            if (!resp.ok) {
+              throw new Error('Error al insertar análisis');
+            }
+            
+            showNotification('analyses', 'success', 'Análisis insertado correctamente');
+          }
+          
+          await loadAdminAnalyses();
+          document.getElementById('admin-insert-form').style.display = 'none';
+        } catch (error) {
+          console.error('Error:', error);
+          showNotification('analyses', 'danger', error.message);
+        }
+      });
+      
+      // Formulario de inserción/edición de usuario
+      $('#insert-user-form').off('submit').on('submit', async function(e) {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        const username = document.getElementById('insert-username-user').value.trim();
+        const email = document.getElementById('insert-email').value.trim();
+        const role = document.getElementById('insert-role-user').value.trim();
+        const password = document.getElementById('insert-password').value.trim();
+        const passwordConfirm = document.getElementById('insert-password-confirm').value.trim();
+        const isEditMode = document.getElementById('edit-user-mode').value === 'edit';
+        
+        // Validar contraseñas si se proporcionan
+        if (password) {
+          if (password !== passwordConfirm) {
+            showNotification('users', 'danger', 'Las contraseñas no coinciden');
+            return;
+          }
+          
+          if (password.length < 6) {
+            showNotification('users', 'danger', 'La contraseña debe tener al menos 6 caracteres');
+            return;
+          }
+        } else if (!isEditMode) {
+          showNotification('users', 'danger', 'La contraseña es obligatoria para nuevos usuarios');
+          return;
+        }
+        
+        try {
+          const userData = {
+            username,
+            email,
+            role
+          };
+          
+          if (password) {
+            userData.password = password;
+          }
+          
+          const resp = await fetch('/api/admin/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ timestamp, target, analyzer, username, role, result })
+            body: JSON.stringify(userData)
           });
-          alert('Insertado nuevo análisis.');
+          
+          if (!resp.ok) {
+            const error = await resp.json();
+            throw new Error(error.error || 'Error al guardar usuario');
+          }
+          
+          showNotification('users', 'success', isEditMode ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
+          
+          await loadUsers();
+          document.getElementById('user-insert-form').style.display = 'none';
+        } catch (error) {
+          console.error('Error:', error);
+          showNotification('users', 'danger', error.message);
         }
-        await loadAdminAnalyses();
-        document.getElementById('admin-insert-form').style.display = 'none';
-      };
+      });
+      
+      // Logout
+      $('#logout-btn').off('click').on('click', function() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('role');
+        window.location.href = 'index.html';
+      });
+    });
+    
+    // Función para confirmar eliminación de análisis desde el historial de usuario
+    function confirmDeleteAnalysisFromHistory(id) {
+      const analysis = adminAnalyses.find(a => a.id === id);
+      if (!analysis) return;
+      
+      // Configurar modal
+      document.getElementById('confirm-delete-message').textContent = 
+        `¿Está seguro de que desea eliminar el análisis de "${analysis.target}" realizado por "${analysis.username}"?`;
+      
+      // Configurar botón de confirmación
+      const confirmBtn = document.getElementById('confirm-delete-btn');
+      confirmBtn.dataset.type = 'analysis';
+      confirmBtn.dataset.id = id;
+      
+      // Mostrar modal
+      $('#confirmDeleteModal').modal('show');
     }
-
-    // Ejemplo: actualizar el total de vulnerabilidades (esto debe hacerse tras cargar los datos reales)
-    function updateDashboardStats(stats) {
-      document.getElementById('dash-total-analyses').textContent = stats.totalAnalyses || '-';
-      document.getElementById('dash-active-users').textContent = stats.activeUsers || '-';
-      document.getElementById('dash-types').textContent = stats.types || '-';
-      document.getElementById('dash-vulns').textContent = stats.vulns || '0';
-    }
-    // Llama a updateDashboardStats({ totalAnalyses: 100, activeUsers: 10, types: 5, vulns: 42 }) tras cargar datos
-
-    // Cargar la lista al entrar
-    loadAdminAnalyses();
   </script>
+  <script src="admin.js"></script>
 </body>
 </html>

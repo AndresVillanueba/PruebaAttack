@@ -15,10 +15,11 @@
       <span>ATTACK-SENTINEL</span>
       <span id="account-type" style="margin-left:18px; font-size:0.95em; color:#fff; background:#007bff; border-radius:6px; font-weight:600; padding:2px 10px; display:none;">user</span>
       <span id="user-display" style="margin-left:8px; font-size:0.95em; color:#ffc107; font-weight:500; display:none; cursor:pointer; position:relative;"></span>
-      <div id="user-dropdown" class="dropdown-menu" style="min-width:220px; display:none; position:absolute; top:32px; left:0; z-index:2000;">
-        <a class="dropdown-item admin-only" href="#" id="admin-panel-link" style="display:none;"><i class="fa-solid fa-user-shield mr-2"></i>Panel de administración</a>
-      </div>
     </a>
+    <!-- El dropdown debe ir fuera del <a> -->
+    <div id="user-dropdown" class="dropdown-menu" style="min-width:220px; display:none; position:absolute; top:32px; left:0; z-index:2000;">
+      <a class="dropdown-item admin-only" href="#" id="admin-panel-link" style="display:none;"><i class="fa-solid fa-user-shield mr-2"></i>Panel de administración</a>
+    </div>
     <div class="ml-auto d-flex align-items-center justify-content-end" style="width: 260px;">
       <button id="logout-btn" class="btn btn-outline-danger d-none" style="font-size:1.1em; display:flex; align-items:center; gap:8px;">
         <span style="font-weight:600;">Cerrar sesión</span>
@@ -51,6 +52,9 @@
           <div class="text-center mt-3">
             <a href="#" id="show-register" style="color:#007bff; font-size:0.98em;">¿No tienes cuenta? Regístrate</a>
           </div>
+          <div class="text-center mt-2">
+            <a href="#" id="show-password-recovery" style="color:#28a745; font-size:0.9em;">¿Olvidaste tu contraseña?</a>
+          </div>
         </form>
         <form id="register-form" style="display:none;">
           <div class="form-group">
@@ -68,6 +72,27 @@
             <a href="#" id="show-login" style="color:#007bff; font-size:0.98em;">¿Ya tienes cuenta? Inicia sesión</a>
           </div>
         </form>
+        
+        <!-- Formulario de recuperación de contraseña -->
+        <form id="recovery-form" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 style="font-weight:600; margin:0;">Recuperar contraseña</h5>
+            <button id="recovery-info-btn" type="button" class="btn btn-outline-info btn-sm" title="Información importante" style="font-size:1em; min-width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
+              <i class="fa-solid fa-circle-info"></i>
+            </button>
+          </div>
+          <div class="form-group">
+            <label for="recovery-username">Usuario</label>
+            <input type="text" class="form-control" id="recovery-username" required autocomplete="username" minlength="3" pattern="^[^\s]{3,}$" title="Mínimo 3 caracteres, sin espacios">
+          </div>
+          <div id="recovery-error" class="alert alert-danger py-2 px-3 mt-2 mb-0" style="display:none;font-size:0.95em;"></div>
+          <div id="recovery-success" class="alert alert-success py-2 px-3 mt-2 mb-0" style="display:none;font-size:0.95em;"></div>
+          <button type="submit" class="btn btn-success btn-block mt-3" style="font-weight:600;">Recuperar contraseña</button>
+          <div class="text-center mt-3">
+            <a href="#" id="show-login-from-recovery" style="color:#007bff; font-size:0.98em;">Volver al inicio de sesión</a>
+          </div>
+        </form>
+        
         <button id="google-login-btn" type="button" style="background:#fff;color:#444;border:1px solid #ccc;padding:8px 16px;border-radius:4px;display:flex;align-items:center;gap:8px;cursor:pointer;width:100%;font-weight:600;margin-top:12px;">
           <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width:20px;height:20px;"> Iniciar sesión con Google
         </button>
@@ -103,9 +128,6 @@
         </div>
         <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
           <button type="submit" class="btn btn-primary" id="start-analysis-btn" style="min-width:140px; height:44px; font-size:1.08em;">Iniciar Análisis</button>
-          <button id="help-btn-form" type="button" class="btn btn-outline-info" title="Ayuda" style="font-size:1.15em; min-width:44px; height:44px; margin-left: 12px; display:flex; align-items:center; justify-content:center;">
-            <i class="fa-solid fa-circle-question"></i>
-          </button>
         </div>
       </form>
 
@@ -225,6 +247,44 @@
       </div>
     </div>
 
+    <!-- Modal de información para recuperación de contraseña -->
+    <div class="modal fade" id="recovery-info-modal" tabindex="-1" role="dialog" aria-labelledby="recoveryInfoModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="recoveryInfoModalLabel">Información sobre recuperación de contraseña</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info mb-3">
+              <strong>Información:</strong> El sistema de recuperación de contraseña está completamente implementado con envío real de correos electrónicos.
+            </div>
+            <p>Cuando solicites recuperar tu contraseña, el sistema realizará los siguientes pasos:</p>
+            <ol>
+              <li>Generará un token único de restablecimiento con tiempo de expiración (1 hora)</li>
+              <li>Almacenará este token en la base de datos asociado a tu usuario</li>
+              <li>Enviará un correo electrónico a tu dirección con un enlace para restablecer la contraseña</li>
+              <li>Cuando accedas al enlace, podrás establecer una nueva contraseña de forma segura</li>
+            </ol>
+            <div class="alert alert-warning mt-3">
+              <strong>Nota:</strong> Para que funcione correctamente, asegúrate de usar un correo electrónico real como nombre de usuario, o actualiza el código para enviar el correo a una dirección asociada con tu cuenta.
+            </div>
+            <div class="alert alert-primary mt-3">
+              <strong>Configuración:</strong> Las credenciales de correo electrónico se pueden configurar mediante variables de entorno:
+              <ul class="mt-2 mb-0">
+                <li><code>EMAIL_USER</code>: Correo del remitente</li>
+                <li><code>EMAIL_PASS</code>: Contraseña o clave de aplicación</li>
+                <li><code>EMAIL_HOST</code>: Servidor SMTP (ej: smtp.gmail.com)</li>
+                <li><code>EMAIL_PORT</code>: Puerto SMTP (ej: 587 o 465)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal de ayuda para login/registro -->
     <div class="modal fade" id="help-modal-login" tabindex="-1" role="dialog" aria-labelledby="helpModalLoginLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered" role="document">
@@ -280,8 +340,12 @@
           <i class="fab fa-linkedin" style="font-size:1.4em;"></i><span class="ml-2">LinkedIn</span>
         </a>
         <span class="text-light">|</span>
-        <a href="https://www.osint.org" target="_blank" class="text-white d-flex align-items-center" style="font-size:1.05em;">
-          <i class="fas fa-globe" style="font-size:1.4em;"></i><span class="ml-2">OSINT Official</span>
+        <a href="https://www.incibe.es/incibe-cert/blog/osint-la-informacion-es-poder" target="_blank" class="text-white d-flex align-items-center" style="font-size:1.05em;">
+          <i class="fas fa-shield-alt" style="font-size:1.4em;"></i><span class="ml-2">INCIBE-CERT</span>
+        </a>
+        <span class="text-light">|</span>
+        <a href="https://www.sans.org/blog/what-is-open-source-intelligence/" target="_blank" class="text-white d-flex align-items-center" style="font-size:1.05em;">
+          <i class="fas fa-graduation-cap" style="font-size:1.4em;"></i><span class="ml-2">SANS OSINT</span>
         </a>
       </div>
     </div>

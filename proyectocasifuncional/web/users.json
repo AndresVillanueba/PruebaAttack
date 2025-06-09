@@ -2,18 +2,15 @@
   {
     "username": "user",
     "password": "user123",
-    "role": "user"
+    "role": "user",
+    "email": "",
+    "updatedAt": 1749341984037
   },
   {
     "username": "andresjulian6a@gmail.com",
     "password": "",
     "role": "user",
     "googleId": "103308749969154858243"
-  },
-  {
-    "username": "andres",
-    "password": "$2b$10$3A4RQP42wpail3/3gkRBxO/Y94au4HLSndJph2sk1pUqvMz4Ih5mu",
-    "role": "user"
   },
   {
     "username": "javi",
@@ -39,7 +36,8 @@
   {
     "username": "adminsentinel",
     "password": "$2b$10$PvskjyNcyqZeD90cT9ENfeHxQFMxgNJfQKIYS4fxN5RbFqgMBpOsO",
-    "role": "admin"
+    "role": "admin",
+    "updatedAt": 1749509928618
   },
   {
     "username": "andres2",
@@ -47,8 +45,47 @@
     "role": "user"
   },
   {
-    "username": "andres1",
-    "password": "$2b$10$BSQJnYihNhDkMe9UwQlwQ.VR9MohmkiqOscO2emc7LI/KTwgHo6Mq",
+    "username": "alejandro",
+    "password": "$2b$10$7CLZwiEHfCq19gVdkqHX2u0HV1lH.3vxvxjFJfte8D/fvmv/qnzqy",
     "role": "user"
+  },
+  {
+    "username": "andresjulian.romerovillanueva@riberadeltajo.es",
+    "password": "",
+    "role": "user",
+    "googleId": "100649219805014099493"
+  },
+  {
+    "username": "brillalacabeza@gmail.com",
+    "password": "$2b$10$weOq3GBVC/7abUej4/jMzumKO1s4jytyC6e7gPvHfVWPHePC3nMf2",
+    "role": "user",
+    "resetToken": null,
+    "resetTokenExpires": null,
+    "passwordLastChanged": 1749340211290,
+    "email": "",
+    "updatedAt": 1749342756230
+  },
+  {
+    "username": "andresju",
+    "password": "$2b$10$8SuZWCiwSdoEu44vuo5kPu/TZueUxElC6RKXv9AcjORX1WnzFtE.i",
+    "role": "user"
+  },
+  {
+    "username": "testuser",
+    "password": "$2b$10$t2BsFYjTq/Wny6j/RaGmludQqRNQg29azkL8x4NkYZcZTmzRySsw2",
+    "role": "user",
+    "email": "test@example.com",
+    "createdAt": 1749380839781,
+    "updatedAt": 1749380882047,
+    "passwordLastChanged": 1749380839781
+  },
+  {
+    "username": "victor",
+    "password": "$2b$10$V5MertyCh8m2K2s00xhoTeXWTjts/2NaBbGp0/9uUZOr54Yfq0YPW",
+    "role": "user",
+    "email": null,
+    "createdAt": 1749382256641,
+    "updatedAt": 1749403388477,
+    "passwordLastChanged": 1749382256641
   }
 ]

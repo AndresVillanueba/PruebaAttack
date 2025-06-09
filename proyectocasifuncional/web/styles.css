@@ -410,3 +410,52 @@ body {
   display: none;
   vertical-align: middle;
 }
+
+/* Estilos movidos desde admin.html */
+.alert {
+  transition: opacity 0.5s ease-in-out;
+}
+.fade-out {
+  opacity: 0;
+}
+.badge-admin {
+  background-color: #dc3545;
+  color: white;
+}
+.badge-user {
+  background-color: #007bff;
+  color: white;
+}
+.action-buttons {
+  white-space: nowrap;
+}
+.tab-pane {
+  padding-top: 20px;
+}
+.table th, .table td {
+  vertical-align: middle;
+}
+
+.analysis-card {
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.technique-card {
+    border-left: 3px solid #007bff;
+    background-color: #f8f9fa;
+}
+
+.service-correlation {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 1rem;
+}
+
+.techniques-list {
+    margin-left: 1rem;
+}
+
+.badge {
+    font-size: 0.8em;
+    padding: 0.3em 0.6em;
+}

@@ -234,6 +234,17 @@ $(function () {
           let desc = r.description || '-';
           let service = r.service || '-';
 
+          // Mostrar subdominios como texto plano si el servicio es 'Subdomain'
+          if (service === 'Subdomain') {
+            $tbody.append(`
+              <tr>
+                <td>Subdomain</td>
+                <td>${desc}</td>
+              </tr>
+            `);
+            return;
+          }
+
           // --- Enriquecimiento de identificadores de vulnerabilidad/exploit ---
           let idType = null, idValue = null, link = null, icon = null, tooltip = null, nvdLink = null, extraLinks = [];
           let normalized = service.toString().trim();
@@ -501,8 +512,14 @@ $(function () {
   $('#help-btn-form-top').click(function() {
     $('#help-modal').modal('show');
   });
+  // Mostrar modal de ayuda para login/registro
   $('#help-btn-login').click(function() {
     $('#help-modal-login').modal('show');
+  });
+  
+  // Mostrar modal de información para recuperación de contraseña
+  $('#recovery-info-btn').click(function() {
+    $('#recovery-info-modal').modal('show');
   });
 
   // Alternar entre login y registro
@@ -510,14 +527,66 @@ $(function () {
     e.preventDefault();
     $('#login-form').hide();
     $('#register-form').show();
+    $('#recovery-form').hide();
     $('#login-error').hide();
   });
   $('#show-login').click(function(e) {
     e.preventDefault();
     $('#register-form').hide();
     $('#login-form').show();
+    $('#recovery-form').hide();
     $('#register-error').hide();
     $('#register-success').hide();
+  });
+  
+  // Mostrar formulario de recuperación de contraseña
+  $('#show-password-recovery').click(function(e) {
+    e.preventDefault();
+    $('#login-form').hide();
+    $('#register-form').hide();
+    $('#recovery-form').show();
+    $('#login-error').hide();
+  });
+  
+  // Volver al login desde recuperación
+  $('#show-login-from-recovery').click(function(e) {
+    e.preventDefault();
+    $('#recovery-form').hide();
+    $('#login-form').show();
+    $('#recovery-error').hide();
+    $('#recovery-success').hide();
+  });
+
+  // Recuperación de contraseña
+  $('#recovery-form').submit(async function(e) {
+    e.preventDefault();
+    const username = $('#recovery-username').val().trim();
+    $('#recovery-error').hide();
+    $('#recovery-success').hide();
+    
+    try {
+      // Enviar solicitud al servidor para recuperar la contraseña
+      await $.ajax({
+        url: `${API_BASE}/api/recover-password`,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ username })
+      });
+      
+      // Mostrar mensaje de éxito
+      $('#recovery-success').html(`
+        <p><strong>Solicitud procesada correctamente.</strong></p>
+        <p>Hemos enviado un correo electrónico con instrucciones para restablecer tu contraseña.</p>
+        <p>Por favor, revisa tu bandeja de entrada y también la carpeta de spam.</p>
+        <p class="small text-muted mt-2">El enlace de recuperación expirará en 1 hora.</p>
+      `).fadeIn();
+      
+      // Deshabilitar el botón y el campo de entrada después del éxito
+      $('#recovery-form button[type="submit"]').prop('disabled', true);
+      $('#recovery-username').prop('disabled', true);
+    } catch (error) {
+      $('#recovery-error').text('Error al procesar la solicitud. Inténtalo de nuevo más tarde.').fadeIn();
+    }
   });
 
   // Registro de usuario
@@ -708,6 +777,22 @@ function showAdminPanel() {
   loadAdminAnalyses();
 }
 
+// Función de utilidad para ayudar con la depuración del filtrado
+function debugFilters() {
+  const user = document.getElementById('filter-user').value.trim();
+  const type = document.getElementById('filter-type').value.trim();
+  const target = document.getElementById('filter-target').value.trim();
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  
+  console.log('Filtros actuales:');
+  console.log('- Usuario:', user || '(ninguno)');
+  console.log('- Tipo:', type || '(ninguno)');
+  console.log('- Target:', target || '(ninguno)');
+  console.log('- Desde:', from || '(ninguno)');
+  console.log('- Hasta:', to || '(ninguno)');
+}
+
 // --- Admin Dashboard y Filtros ---
 async function updateAdminDashboard(analyses) {
   document.getElementById('dash-total-analyses').innerText = analyses.length;
@@ -743,6 +828,13 @@ document.getElementById('clear-admin-filters').onclick = function() {
   document.getElementById('filter-target').value = '';
   document.getElementById('filter-from').value = '';
   document.getElementById('filter-to').value = '';
+  
+  // Ocultar notificación de filtrado
+  const notificationEl = document.getElementById('admin-notifications');
+  if (notificationEl) {
+    notificationEl.style.display = 'none';
+  }
+  
   loadAdminAnalyses();
 };
 
@@ -772,33 +864,117 @@ async function loadAdminAnalyses() {
   const target = document.getElementById('filter-target').value.trim();
   const from = document.getElementById('filter-from').value;
   const to = document.getElementById('filter-to').value;
-  let url = '/api/history?lang=es';
-  if (from) url += `&from=${from}`;
-  if (to) url += `&to=${to}`;
+  
   try {
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    const data = await res.json();
-    let analyses = data.history || [];
-    // Filtros en frontend
-    if (user) analyses = analyses.filter(a => (a.username || '').toLowerCase().includes(user.toLowerCase()));
+    // Obtener todos los análisis desde el endpoint del administrador
+    const res = await fetch('/api/admin/analyses', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) {
+      throw new Error('Error al obtener análisis');
+    }
+    
+    let analyses = await res.json();
+    
+    // Aplicar filtros
+    if (user) {
+      // Búsqueda mejorada: Compara con múltiples campos y acepta coincidencias parciales
+      analyses = analyses.filter(a => {
+        const username = (a.username || '').toLowerCase();
+        const userSearch = user.toLowerCase();
+        
+        // Verificar coincidencia de substring para una búsqueda más flexible
+        return username.includes(userSearch);
+      });
+      
+      // Depuración avanzada para verificar resultados de búsqueda
+      console.log('Búsqueda de usuario:', user);
+      console.log('Términos buscados:', user.toLowerCase());
+      console.log('Análisis encontrados:', analyses.length);
+      if (analyses.length > 0) {
+        console.log('Ejemplos de usuarios en análisis:', 
+          analyses.slice(0, 3).map(a => a.username).join(', '));
+      } else {
+        console.log('No se encontraron análisis para este término de búsqueda');
+        console.log('Usuarios disponibles:', 
+          [...new Set(await fetch('/api/admin/users', { headers: { Authorization: 'Bearer ' + token } })
+            .then(res => res.json())
+            .then(users => users.map(u => u.username))
+            .catch(() => []))]);
+      }
+    }
+    
     if (type) analyses = analyses.filter(a => (a.analyzer || '').toLowerCase().includes(type.toLowerCase()));
     if (target) analyses = analyses.filter(a => (a.target || '').toLowerCase().includes(target.toLowerCase()));
+    
+    // Filtrar por fecha si se especificaron rangos
+    if (from || to) {
+      analyses = analyses.filter(a => {
+        const analysisDate = new Date(a.timestamp);
+        if (from && to) {
+          return analysisDate >= new Date(from) && analysisDate <= new Date(to);
+        } else if (from) {
+          return analysisDate >= new Date(from);
+        } else if (to) {
+          return analysisDate <= new Date(to);
+        }
+        return true;
+      });
+    }
+    
+    // Imprimir información de depuración en la consola para facilitar la solución de problemas
+    console.log('Búsqueda de usuario:', user);
+    console.log('Análisis encontrados:', analyses.length);
+    if (analyses.length > 0) {
+      console.log('Ejemplo de usuario en análisis:', analyses[0].username);
+    }
+    
     updateAdminDashboard(analyses);
     tbody.innerHTML = '';
     if (!analyses.length) tbody.innerHTML = '<tr><td colspan="5">Sin resultados</td></tr>';
+    
+    // Determinar si hay filtros activos y mostrar una notificación específica
+    const adminNotifications = document.getElementById('admin-notifications');
+    if (adminNotifications) {
+      if (user || type || target || from || to) {
+        // Construir una descripción de los filtros utilizados
+        const filterDesc = [];
+        if (user) filterDesc.push(`usuario "${user}"`);
+        if (type) filterDesc.push(`tipo "${type}"`);
+        if (target) filterDesc.push(`target "${target}"`);
+        if (from || to) filterDesc.push("rango de fechas");
+        
+        const message = `Se encontraron ${analyses.length} análisis para ${filterDesc.join(" y ")}.`;
+        adminNotifications.className = 'alert alert-info';
+        adminNotifications.textContent = message;
+        adminNotifications.style.display = 'block';
+      }
+    }
+    
     analyses.forEach(a => {
       const tr = document.createElement('tr');
+      // Format the timestamp for better readability
+      const formattedDate = a.timestamp ? formatDate(a.timestamp) : '-';
       tr.innerHTML = `
-        <td>${a.timestamp || '-'}</td>
+        <td>${formattedDate}</td>
         <td>${a.target || '-'}</td>
         <td>${a.analyzer || '-'}</td>
         <td>${a.username || '-'}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="deleteAdminAnalysis('${a.timestamp}')">Borrar</button>
-          <button class="btn btn-warning btn-sm ml-2" onclick="showUpdateForm('${a.timestamp}')">Actualizar</button>
+          <button class="btn btn-sm btn-info view-analysis" data-id="${a.id}" title="Ver detalles">
+            <i class="fas fa-eye"></i>
+          </button>
+          <button class="btn btn-sm btn-warning report-analysis" data-id="${a.id}" title="Reportar análisis">
+            <i class="fas fa-flag"></i>
+          </button>
         </td>
       `;
       tbody.appendChild(tr);
+    });
+    // Reasignar eventos a los botones
+    document.querySelectorAll('.view-analysis').forEach(btn => {
+      btn.addEventListener('click', () => viewAnalysis(btn.dataset.id));
+    });
+    document.querySelectorAll('.report-analysis').forEach(btn => {
+      btn.addEventListener('click', () => reportAnalysis(btn.dataset.id));
     });
   } catch (e) {
     tbody.innerHTML = '<tr><td colspan="5">Error cargando análisis</td></tr>';
@@ -927,3 +1103,110 @@ $(document).on('click', function(e) {
     $('#user-dropdown').hide();
   }
 });
+
+// Display analysis results and MITRE correlations
+async function displayAnalysisResults(resp) {
+  const $tbody = $('#resultsTable tbody');
+  const $full = $('#fullReport');
+
+  // Store current analysis timestamp for PDF
+  lastAnalysisTimestamp = resp.timestamp || (resp.full && resp.full.timestamp) || null;
+
+  // Show AI report at the top
+  if (resp.resumenAI) {
+    $full.text(resp.resumenAI).show();
+  } else if (resp.aiReport) {
+    $full.text(resp.aiReport).show();
+  } else if (resp.full) {
+    $full.text(typeof resp.full === 'string' ? resp.full : JSON.stringify(resp.full, null, 2)).show();
+  } else {
+    $full.text('No se generó informe AI').show();
+  }
+
+  // Clear previous results
+  $tbody.empty();
+
+  // Display port scan results
+  if (resp.results && resp.results.length) {
+    resp.results.forEach(r => {
+      let desc = r.description || '-';
+      let service = r.service || '-';
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${r.timestamp || '-'}</td>
+        <td>${service}</td>
+        <td>${desc}</td>
+      `;
+      $tbody.append(row);
+    });
+  }
+
+  // Display MITRE ATT&CK correlations if available
+  if (resp.correlations && resp.correlations.length) {
+    const $mitreSection = $('<div class="mitre-correlations mt-4">')
+      .html(`
+        <h4><i class="fas fa-shield-alt"></i> MITRE ATT&CK Correlations</h4>
+        <div class="correlations-summary mb-3">
+          <span class="badge bg-info">Found ${resp.correlations.length} relevant techniques</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered">
+            <thead>
+              <tr>
+                <th style="width: 15%">Technique ID</th>
+                <th style="width: 20%">Name</th>
+                <th style="width: 15%">Tactic</th>
+                <th style="width: 30%">Description</th>
+                <th style="width: 20%">References</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${resp.correlations.map(corr => `
+                <tr>
+                  <td>
+                    <a href="https://attack.mitre.org/techniques/${corr.id}/" 
+                       target="_blank" 
+                       data-bs-toggle="tooltip" 
+                       title="View technique details on MITRE ATT&CK">
+                      <i class="fas fa-external-link-alt me-1"></i>${corr.id}
+                    </a>
+                  </td>
+                  <td><strong>${corr.name}</strong></td>
+                  <td>
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-layer-group me-1"></i>${corr.tactic}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="technique-description">${corr.description || 'No description available'}</div>
+                  </td>
+                  <td>
+                    ${corr.references && corr.references.length ? 
+                      `<div class="references-list">
+                        ${corr.references.map(ref => 
+                          `<a href="${ref.url}" 
+                              target="_blank" 
+                              class="reference-link"
+                              data-bs-toggle="tooltip"
+                              title="Source: ${ref.source}">
+                            <i class="fas fa-book me-1"></i>${ref.source || 'Reference'}
+                          </a>`
+                        ).join('')}
+                      </div>`
+                    : '<span class="text-muted">No references available</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `);
+    
+    // Insert MITRE section after results table
+    $('#resultsTable').after($mitreSection);
+    
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+  }
+}

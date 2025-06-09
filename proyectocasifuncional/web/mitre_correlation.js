@@ -19,14 +19,16 @@ async function correlateServiceWithMitre(serviceName) {
         }
       }
     }
+  });  return (body.hits.hits || []).map(hit => {
+    const source = hit._source;
+    return {
+      id: source.technique_id || hit._id,
+      name: source.name || 'Unknown Technique',
+      description: source.description || '',
+      tactic: source.tactic || 'unknown',
+      references: source.references || []
+    };
   });
-  return (body.hits.hits || []).map(hit => ({
-    technique_id: hit._source.technique_id,
-    name: hit._source.name,
-    description: hit._source.description,
-    tactic: hit._source.tactic,
-    references: hit._source.references
-  }));
 }
 
 module.exports = { correlateServiceWithMitre };

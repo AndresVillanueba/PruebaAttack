@@ -1,0 +1,126 @@
+.mitre-correlations {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 30px;
+}
+
+.mitre-correlations h4 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.mitre-correlations .fa-shield-alt {
+  color: #3498db;
+  margin-right: 10px;
+  font-size: 1.2em;
+}
+
+.mitre-correlations .correlations-summary {
+  margin-bottom: 15px;
+}
+
+.mitre-correlations .badge {
+  font-size: 0.9em;
+  padding: 8px 12px;
+  font-weight: 500;
+}
+
+.mitre-correlations .badge.bg-secondary {
+  background-color: #6c757d;
+}
+
+.mitre-correlations .badge.bg-info {
+  background-color: #3498db;
+}
+
+.mitre-correlations table {
+  background-color: white;
+  margin-bottom: 0;
+}
+
+.mitre-correlations th {
+  background-color: #f1f3f5;
+  color: #2c3e50;
+  font-weight: 600;
+  padding: 12px;
+}
+
+.mitre-correlations td {
+  padding: 12px;
+  vertical-align: middle;
+}
+
+.mitre-correlations a {
+  color: #3498db;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.mitre-correlations a:hover {
+  color: #2980b9;
+  text-decoration: none;
+}
+
+.mitre-correlations .technique-description {
+  font-size: 0.95em;
+  line-height: 1.5;
+  color: #2c3e50;
+}
+
+.mitre-correlations .references-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mitre-correlations .reference-link {
+  font-size: 0.9em;
+  display: inline-flex;
+  align-items: center;
+  color: #3498db;
+}
+
+.mitre-correlations .reference-link i {
+  margin-right: 5px;
+}
+
+.mitre-correlations .text-muted {
+  color: #6c757d;
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.mitre-correlations .table-responsive {
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  margin-top: 15px;
+}
+
+/* Hover effects */
+.mitre-correlations tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .mitre-correlations {
+    padding: 15px;
+  }
+  
+  .mitre-correlations table {
+    font-size: 0.9em;
+  }
+  
+  .mitre-correlations td {
+    padding: 8px;
+  }
+
+  .mitre-correlations .technique-description {
+    font-size: 0.9em;
+  }
+}

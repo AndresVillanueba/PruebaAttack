@@ -10,9 +10,11 @@
     "@opensearch-project/opensearch": "^3.5.1",
     "axios": "^1.9.0",
     "bcrypt": "^6.0.0",
+    "crypto-random-string": "^5.0.0",
     "dotenv": "^16.5.0",
     "express": "^4.17.1",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.3",
     "opensearch": "^0.0.3",
     "pdfkit": "^0.17.1"
   }

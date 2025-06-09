@@ -7,6 +7,15 @@
 </head>
 <body>
   <script>
+    // Redirección si no está logueado
+    (function() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html'; // Cambia a la ruta de tu login si es diferente
+      }
+    })();
+  </script>
+  <script>
     // Extrae token, rol y username de la URL
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
